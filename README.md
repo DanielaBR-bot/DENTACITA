@@ -68,11 +68,41 @@ Como todo corre en el navegador, los datos son locales a cada navegador y **no s
 | Mensajes genéricos | "Usuario o contraseña incorrectos", sin revelar si el correo existe | `js/auth.js` |
 | Mitigación de temporización | Hash "señuelo" cuando el correo no existe, para que el tiempo de respuesta no delate cuentas válidas | `js/auth.js` |
 | Bloqueo por intentos | 3 intentos fallidos → cuenta bloqueada 5 minutos | `js/auth.js` |
-| Control de sesión | Solo se guardan correo, nombre y rol; nunca la contraseña ni el hash | `js/auth.js` |
+| Control de sesión | Solo se guardan un id de sesión aleatorio, correo, nombre y rol; nunca la contraseña ni el hash | `js/auth.js` |
 | Control de acceso por rol | Cada página valida el rol; si no corresponde, redirige a la página de su rol y registra `ACCESO_DENEGADO` | `js/auth.js` (`verificarAcceso`, `paginaInicioPorRol`) |
 | Mínimo privilegio | El registro de eventos es exclusivo del rol `administrador`; recepción, odontología y pacientes no lo ven | `panel-logs.html` |
 | Alerta de horario | Ingreso fuera de 08:00-18:00: se permite, pero se registra `ACCESO_FUERA_HORARIO` como alerta | `js/auth.js` |
-| Registro de eventos | Login, bloqueos, accesos denegados, citas y logout, con fecha, usuario, rol, acción y resultado; nunca contraseñas | `js/logs.js`, `panel-logs.html` |
+| Registro de eventos | Login, bloqueos, accesos denegados, citas y logout, con id único, fecha, usuario, rol, acción y resultado; nunca contraseñas | `js/logs.js`, `panel-logs.html` |
+| Integridad del registro | Registro "solo agregar": la interfaz no permite editar ni borrar eventos; las alertas se revisan agregando un evento `ALERTA_REVISADA`, sin tocar la alerta original | `js/logs.js`, `panel-logs.html` |
+| Detección de amenazas | Reglas automáticas que generan eventos `ALERTA_SEGURIDAD` (ver tabla abajo) | `js/logs.js` |
+| Panel de auditoría | Tarjetas resumen, alertas activas (rojo = ALTO, naranja = MEDIO), filtros por usuario, rol, acción, resultado y fechas, y exportación a `.json` | `panel-logs.html` |
+| Simulador de incidentes | Genera eventos simulados (marcados `SIMULADO`) para probar las reglas; solo administrador y con aviso visible de modo simulación | `simulador.html`, `js/simulador.js` |
+
+### Reglas de detección
+
+Se evalúan cada vez que se registra un evento, con la fecha del propio evento. Un intento fallido es un `LOGIN_FALLIDO` o un `CUENTA_BLOQUEADA` con resultado `FALLO`, porque el tercer intento (el que bloquea la cuenta) se registra como `CUENTA_BLOQUEADA`.
+
+| Regla | Condición | Nivel |
+|---|---|---|
+| Fuerza bruta | 3 o más intentos fallidos del mismo correo en menos de 5 minutos | ALTO |
+| Enumeración de cuentas | Intentos fallidos con 3 o más correos distintos en menos de 5 minutos | ALTO |
+| Escalamiento de privilegios | 2 o más `ACCESO_DENEGADO` del mismo usuario en la misma sesión | ALTO |
+| Acceso fuera de horario | Inicio de sesión antes de las 08:00 o desde las 18:00 | MEDIO |
+
+Para no llenar el panel de duplicados, una misma regla no vuelve a alertar sobre el mismo correo (o la misma sesión) mientras la alerta anterior siga dentro de la ventana de 5 minutos.
+
+## Simulador de incidentes
+
+`simulador.html` (solo administrador) muestra el aviso **MODO SIMULACIÓN – entorno académico** y tiene un botón por escenario. Los eventos generados llevan `simulado: true` y su detalle empieza con «SIMULADO». Pasan por las mismas reglas de detección que los eventos reales y al terminar se muestran las alertas resultantes. No se modifican cuentas ni bloqueos reales.
+
+| Escenario | Qué simula | Alerta esperada |
+|---|---|---|
+| 1 | 5 intentos fallidos contra `recepcion@sonrisa.ec` en 1 minuto, con bloqueo | Fuerza bruta (ALTO) |
+| 2 | Ingreso de `recepcion@sonrisa.ec` a las 23:40 | Acceso fuera de horario (MEDIO) |
+| 3 | `paciente1@sonrisa.ec` intenta abrir `panel-logs.html` y `simulador.html` | Escalamiento de privilegios (ALTO) |
+| 4 | 4 correos distintos que no existen | Enumeración de cuentas (ALTO) |
+
+El botón **Borrar eventos simulados** elimina solo los eventos marcados como simulados (con sus alertas) y deja el evento `LOG_SIMULADOS_BORRADOS` como constancia. Es la única operación de borrado del registro.
 | Cierre de sesión | Botón en todas las páginas internas; limpia la sesión y registra `LOGOUT` | `js/auth.js` |
 
 ## Guía de pruebas
@@ -92,18 +122,36 @@ Casos sugeridos para comprobar los controles:
 
 Después de las pruebas, entra como administrador (`admin@sonrisa.ec`) para ver los eventos registrados en `panel-logs.html`.
 
+### Pruebas de las reglas de detección y del panel
+
+Ingresa como administrador y ejecuta cada escenario en `simulador.html`; luego revisa el resultado en `panel-logs.html`.
+
+| # | Prueba | Qué hacer | Resultado esperado |
+|---|---|---|---|
+| P9 | Escenario 1: fuerza bruta | Ejecutar el escenario 1 | 5 eventos simulados y una alerta ALTO «Fuerza bruta» contra `recepcion@sonrisa.ec` |
+| P10 | Escenario 2: fuera de horario | Ejecutar el escenario 2 | Una alerta MEDIO «Acceso fuera de horario» (23:40) |
+| P11 | Escenario 3: escalamiento | Ejecutar el escenario 3 | Una alerta ALTO «Escalamiento de privilegios» de `paciente1@sonrisa.ec` |
+| P12 | Escenario 4: enumeración | Ejecutar el escenario 4 | Una alerta ALTO «Enumeración de cuentas» |
+| P13 | Revisar alerta | En el panel, pulsar «Marcar como revisada» | La alerta sale de «Alertas activas», baja el contador y aparece un evento `ALERTA_REVISADA` |
+| P14 | Filtros | Filtrar por rol, acción, resultado, usuario y fechas; pulsar «Limpiar filtros» | La tabla muestra solo lo que coincide; al limpiar vuelven todos los eventos |
+| P15 | Exportar | Pulsar «Exportar registro (.json)» | Se descarga `dentacita_logs_AAAA-MM-DD.json` con todos los eventos |
+| P16 | Borrar simulados | En el simulador, «Borrar eventos simulados» | Desaparecen solo los simulados; los reales se conservan |
+| P17 | Regla en vivo | Sin simulador: fallar la contraseña 3 veces con el mismo correo en menos de 5 minutos | Alerta ALTO «Fuerza bruta» en el panel |
+
 ## Estructura del proyecto
 
 ```
 dentacita/
 ├── index.html          Inicio de sesión
 ├── citas.html          Agenda según el rol
-├── panel-logs.html     Registro de eventos (solo administrador)
+├── panel-logs.html     Registro de eventos y alertas (solo administrador)
+├── simulador.html      Simulador de incidentes (solo administrador)
 ├── css/estilos.css
 ├── js/
 │   ├── validacion.js   Reglas de validación y sanitización
 │   ├── auth.js         Hash, bloqueo, sesión y roles
-│   └── logs.js         Registro de eventos
+│   ├── logs.js         Registro de eventos, reglas de detección y alertas
+│   └── simulador.js    Escenarios de simulación
 ├── data/usuarios.json  Usuarios de prueba
 └── README.md
 ```
@@ -114,8 +162,4 @@ dentacita/
 - SHA-256 sin sal es adecuado para la demostración, pero en producción se usaría un algoritmo lento con sal (bcrypt, Argon2) en el servidor.
 - El bloqueo por intentos se puede evadir borrando el almacenamiento del navegador.
 
-## Próximas mejoras
-
-- Filtros del panel de logs por usuario, rol, acción y rango de fechas.
-- Alertas visuales destacadas para eventos críticos.
-- Exportar el registro a `.json` (la función `exportarEventosComoJSON()` ya existe en `js/logs.js`).
+- El registro "solo agregar" es una garantía de la interfaz: quien controle el navegador puede editar `localStorage` directamente. Un registro realmente inmutable requeriría almacenamiento en un servidor.
