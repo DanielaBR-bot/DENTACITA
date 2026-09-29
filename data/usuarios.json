@@ -1,0 +1,30 @@
+[
+  {
+    "id": "REC001",
+    "nombre": "Maria Fernanda Lopez",
+    "correo": "recepcion@sonrisa.ec",
+    "hashContrasena": "dac5330b6a1a7bf5e9a0ff1fed576b8659071b4557207d92b887d2e4bd47533d",
+    "rol": "recepcionista"
+  },
+  {
+    "id": "ODO001",
+    "nombre": "Dr. Carlos Andrade",
+    "correo": "odontologo@sonrisa.ec",
+    "hashContrasena": "15ab01a1c43b6ece0488e8a66293beda761e07f28fc87e01f8c481105ccd90e5",
+    "rol": "odontologo"
+  },
+  {
+    "id": "PAC001",
+    "nombre": "Ana Torres",
+    "correo": "paciente1@sonrisa.ec",
+    "hashContrasena": "2f8426ba61a09b9cd297d3af5a2675eb5c89d035c61b1176ee4c60f2d0547d3d",
+    "rol": "paciente"
+  },
+  {
+    "id": "PAC002",
+    "nombre": "Luis Mendoza",
+    "correo": "paciente2@sonrisa.ec",
+    "hashContrasena": "875123109f4879bda471b3b005426761570da6166d3642790622c1ea97c2acc6",
+    "rol": "paciente"
+  }
+]
