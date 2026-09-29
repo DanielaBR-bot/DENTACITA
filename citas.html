@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DentaCita - Agenda de citas</title>
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+    <header class="barra-superior">
+        <h1>🦷 DentaCita</h1>
+        <div id="barra-sesion"></div>
+    </header>
+
+    <main class="contenedor" id="contenedor-principal">
+        <p class="vacio">Cargando agenda...</p>
+    </main>
+
+    <!-- Orden de carga: validacion y logs primero (auth.js depende de ambos) -->
+    <script src="js/validacion.js"></script>
+    <script src="js/logs.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        const CLAVE_CITAS = "dentacita_citas";
+
+        // La pagina es valida para los 3 roles; el contenido cambia segun cual sea.
+        const sesion = verificarAcceso(["paciente", "recepcionista", "odontologo"]);
+
+        const contenedorPrincipal = document.getElementById("contenedor-principal");
+
+        if (sesion) {
+            pintarBarraSesion(sesion);
+            agregarEnlaceLogsSiCorresponde(sesion);
+            iniciarPagina(sesion);
+        }
+
+        /**
+         * Si el usuario es recepcionista, agrega un enlace al panel de
+         * registro de eventos junto al boton de cerrar sesion.
+         */
+        function agregarEnlaceLogsSiCorresponde(sesion) {
+            if (sesion.rol !== "recepcionista") return;
+
+            const contenedorSesion = document.getElementById("barra-sesion");
+            const enlace = document.createElement("a");
+            enlace.href = "panel-logs.html";
+            enlace.textContent = "Registro de eventos";
+            enlace.className = "boton-secundario";
+            enlace.style.textDecoration = "none";
+            enlace.style.display = "inline-block";
+
+            // Se inserta antes del boton "Cerrar sesión" (ultimo hijo actual)
+            contenedorSesion.insertBefore(enlace, contenedorSesion.lastChild);
+        }
+
+        // ----------------------------------------------------------------
+        // Utilidades de datos: citas (localStorage) y usuarios (JSON)
+        // ----------------------------------------------------------------
+
+        function obtenerCitas() {
+            try {
+                const datos = localStorage.getItem(CLAVE_CITAS);
+                const citas = datos ? JSON.parse(datos) : null;
+                return Array.isArray(citas) ? citas : null;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function guardarCitas(citas) {
+            localStorage.setItem(CLAVE_CITAS, JSON.stringify(citas));
+        }
+
+        function formatearFecha(fecha) {
+            const dd = String(fecha.getDate()).padStart(2, "0");
+            const mm = String(fecha.getMonth() + 1).padStart(2, "0");
+            const yyyy = fecha.getFullYear();
+            return yyyy + "-" + mm + "-" + dd;
+        }
+
+        function fechaDeHoy() {
+            return formatearFecha(new Date());
+        }
+
+        function sumarDias(fecha, dias) {
+            const nueva = new Date(fecha);
+            nueva.setDate(nueva.getDate() + dias);
+            return nueva;
+        }
+
+        /**
+         * La primera vez que se abre la agenda no hay citas guardadas en
+         * localStorage, asi que se crean algunas de ejemplo para poder
+         * probar el prototipo (2 citas de hoy y 1 de manana).
+         */
+        function sembrarCitasSiNoExisten(odontologo) {
+            let citas = obtenerCitas();
+            if (citas !== null) return citas;
+
+            const hoy = fechaDeHoy();
+            const manana = formatearFecha(sumarDias(new Date(), 1));
+
+            citas = [
+                {
+                    id: 1,
+                    pacienteCorreo: "paciente1@sonrisa.ec",
+                    pacienteNombre: "Ana Torres",
+                    odontologoCorreo: odontologo.correo,
+                    odontologoNombre: odontologo.nombre,
+                    fecha: hoy,
+                    hora: "09:00",
+                    motivo: "Limpieza dental",
+                    estado: "Confirmada"
+                },
+                {
+                    id: 2,
+                    pacienteCorreo: "paciente2@sonrisa.ec",
+                    pacienteNombre: "Luis Mendoza",
+                    odontologoCorreo: odontologo.correo,
+                    odontologoNombre: odontologo.nombre,
+                    fecha: hoy,
+                    hora: "11:30",
+                    motivo: "Revisión general",
+                    estado: "Pendiente"
+                },
+                {
+                    id: 3,
+                    pacienteCorreo: "paciente1@sonrisa.ec",
+                    pacienteNombre: "Ana Torres",
+                    odontologoCorreo: odontologo.correo,
+                    odontologoNombre: odontologo.nombre,
+                    fecha: manana,
+                    hora: "10:00",
+                    motivo: "Control de ortodoncia",
+                    estado: "Pendiente"
+                }
+            ];
+            guardarCitas(citas);
+            return citas;
+        }
+
+        function generarIdCita() {
+            return Date.now() + Math.floor(Math.random() * 1000);
+        }
+
+        // ----------------------------------------------------------------
+        // Arranque: se carga la lista de usuarios (para saber quien es el
+        // odontologo y la lista de pacientes) y luego se pinta la vista.
+        // ----------------------------------------------------------------
+
+        async function iniciarPagina(sesion) {
+            let usuarios;
+            try {
+                usuarios = await cargarUsuarios();
+            } catch (error) {
+                contenedorPrincipal.innerHTML = "";
+                const aviso = document.createElement("p");
+                aviso.className = "mensaje-formulario error";
+                aviso.textContent = "No se pudo cargar la información del consultorio. Verifique que el proyecto se ejecute con Live Server.";
+                contenedorPrincipal.appendChild(aviso);
+                return;
+            }
+
+            const odontologo = usuarios.find((u) => u.rol === "odontologo");
+            const pacientes = usuarios.filter((u) => u.rol === "paciente");
+            sembrarCitasSiNoExisten(odontologo);
+
+            if (sesion.rol === "paciente") {
+                pintarVistaPaciente(sesion, odontologo);
+            } else if (sesion.rol === "odontologo") {
+                pintarVistaOdontologo(sesion);
+            } else if (sesion.rol === "recepcionista") {
+                pintarVistaRecepcionista(pacientes, odontologo);
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // Componentes visuales reutilizables
+        // ----------------------------------------------------------------
+
+        function crearTarjetaCita(cita, acciones) {
+            const tarjeta = document.createElement("article");
+            tarjeta.className = "tarjeta tarjeta-cita";
+
+            const titulo = document.createElement("h3");
+            titulo.textContent = cita.fecha + " · " + cita.hora;
+            tarjeta.appendChild(titulo);
+
+            const campos = [
+                ["Paciente", cita.pacienteNombre],
+                ["Odontólogo", cita.odontologoNombre],
+                ["Motivo", cita.motivo],
+                ["Estado", cita.estado]
+            ];
+            campos.forEach(([etiqueta, valor]) => {
+                const parrafo = document.createElement("p");
+                parrafo.textContent = etiqueta + ": " + valor; // textContent evita XSS
+                tarjeta.appendChild(parrafo);
+            });
+
+            if (acciones && acciones.length) {
+                const divAcciones = document.createElement("div");
+                divAcciones.className = "acciones";
+                acciones.forEach((accion) => divAcciones.appendChild(accion));
+                tarjeta.appendChild(divAcciones);
+            }
+
+            return tarjeta;
+        }
+
+        function crearBoton(texto, clase, alHacerClic) {
+            const boton = document.createElement("button");
+            boton.type = "button";
+            boton.textContent = texto;
+            boton.className = clase;
+            boton.addEventListener("click", alHacerClic);
+            return boton;
+        }
+
+        function cancelarCita(id, sesion) {
+            const citas = obtenerCitas() || [];
+            const cita = citas.find((c) => c.id === id);
+            if (!cita || cita.estado === "Cancelada") return;
+
+            cita.estado = "Cancelada";
+            guardarCitas(citas);
+
+            registrarEvento(sesion.correo, sesion.rol, ACCIONES.CITA_CANCELADA,
+                "EXITO", "Cita #" + id + " (" + cita.fecha + " " + cita.hora + ") cancelada");
+        }
+
+        // ----------------------------------------------------------------
+        // Vista: PACIENTE (solo sus propias citas)
+        // ----------------------------------------------------------------
+
+        function pintarVistaPaciente(sesion, odontologo) {
+            contenedorPrincipal.innerHTML = "";
+
+            const encabezado = document.createElement("div");
+            encabezado.className = "encabezado-seccion";
+            const titulo = document.createElement("h2");
+            titulo.textContent = "Mis citas";
+            encabezado.appendChild(titulo);
+            encabezado.appendChild(crearBoton("+ Solicitar cita", "boton-chico", () => {
+                document.getElementById("panel-nueva-cita").classList.toggle("oculto");
+            }));
+            contenedorPrincipal.appendChild(encabezado);
+
+            // --- Formulario para solicitar una nueva cita ---
+            const panelNuevaCita = document.createElement("section");
+            panelNuevaCita.id = "panel-nueva-cita";
+            panelNuevaCita.className = "tarjeta oculto";
+            panelNuevaCita.style.marginBottom = "20px";
+            panelNuevaCita.innerHTML =
+                '<h3 style="margin-top:0;">Solicitar nueva cita</h3>' +
+                '<div class="campo"><label for="nc-fecha">Fecha</label>' +
+                '<input type="date" id="nc-fecha" min="' + fechaDeHoy() + '"></div>' +
+                '<div class="campo"><label for="nc-hora">Hora</label>' +
+                '<input type="time" id="nc-hora"></div>' +
+                '<div class="campo"><label for="nc-motivo">Motivo</label>' +
+                '<input type="text" id="nc-motivo" maxlength="80" placeholder="Ej. Dolor de muela"></div>' +
+                '<div class="mensaje-error" id="nc-error"></div>' +
+                '<button type="button" class="boton-principal" id="nc-guardar">Confirmar solicitud</button>';
+            contenedorPrincipal.appendChild(panelNuevaCita);
+
+            document.getElementById("nc-guardar").addEventListener("click", () => {
+                const fecha = document.getElementById("nc-fecha").value;
+                const hora = document.getElementById("nc-hora").value;
+                const motivo = limpiarEspacios(document.getElementById("nc-motivo").value);
+                const error = document.getElementById("nc-error");
+                error.textContent = "";
+
+                if (!fecha || !hora || !motivo) {
+                    error.textContent = "Complete fecha, hora y motivo para solicitar la cita.";
+                    return;
+                }
+
+                const citas = obtenerCitas() || [];
+                const nuevaCita = {
+                    id: generarIdCita(),
+                    pacienteCorreo: sesion.correo,
+                    pacienteNombre: sesion.nombre,
+                    odontologoCorreo: odontologo.correo,
+                    odontologoNombre: odontologo.nombre,
+                    fecha,
+                    hora,
+                    motivo,
+                    estado: "Pendiente"
+                };
+                citas.push(nuevaCita);
+                guardarCitas(citas);
+
+                registrarEvento(sesion.correo, sesion.rol, ACCIONES.CITA_CREADA,
+                    "EXITO", "Solicitud de cita para " + fecha + " " + hora);
+
+                pintarVistaPaciente(sesion, odontologo);
+            });
+
+            // --- Lista de citas propias ---
+            const citas = (obtenerCitas() || [])
+                .filter((c) => c.pacienteCorreo === sesion.correo)
+                .sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
+
+            const rejilla = document.createElement("div");
+            rejilla.className = "rejilla-citas";
+
+            if (citas.length === 0) {
+                const vacio = document.createElement("p");
+                vacio.className = "vacio";
+                vacio.textContent = "Todavía no tiene citas registradas.";
+                contenedorPrincipal.appendChild(vacio);
+            } else {
+                citas.forEach((cita) => {
+                    const acciones = [];
+                    if (cita.estado !== "Cancelada") {
+                        acciones.push(crearBoton("Cancelar", "boton-chico peligro", () => {
+                            cancelarCita(cita.id, sesion);
+                            pintarVistaPaciente(sesion, odontologo);
+                        }));
+                    }
+                    rejilla.appendChild(crearTarjetaCita(cita, acciones));
+                });
+                contenedorPrincipal.appendChild(rejilla);
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // Vista: ODONTOLOGO (solo su agenda del dia, solo lectura)
+        // ----------------------------------------------------------------
+
+        function pintarVistaOdontologo(sesion) {
+            contenedorPrincipal.innerHTML = "";
+
+            const encabezado = document.createElement("div");
+            encabezado.className = "encabezado-seccion";
+            const titulo = document.createElement("h2");
+            titulo.textContent = "Agenda de hoy (" + fechaDeHoy() + ")";
+            encabezado.appendChild(titulo);
+            contenedorPrincipal.appendChild(encabezado);
+
+            const citasHoy = (obtenerCitas() || [])
+                .filter((c) => c.odontologoCorreo === sesion.correo && c.fecha === fechaDeHoy())
+                .sort((a, b) => a.hora.localeCompare(b.hora));
+
+            if (citasHoy.length === 0) {
+                const vacio = document.createElement("p");
+                vacio.className = "vacio";
+                vacio.textContent = "No tiene citas programadas para hoy.";
+                contenedorPrincipal.appendChild(vacio);
+                return;
+            }
+
+            const rejilla = document.createElement("div");
+            rejilla.className = "rejilla-citas";
+            citasHoy.forEach((cita) => rejilla.appendChild(crearTarjetaCita(cita, [])));
+            contenedorPrincipal.appendChild(rejilla);
+        }
+
+        // ----------------------------------------------------------------
+        // Vista: RECEPCIONISTA (ve y gestiona todas las citas)
+        // ----------------------------------------------------------------
+
+        function pintarVistaRecepcionista(pacientes, odontologo) {
+            contenedorPrincipal.innerHTML = "";
+
+            const encabezado = document.createElement("div");
+            encabezado.className = "encabezado-seccion";
+            const titulo = document.createElement("h2");
+            titulo.textContent = "Agenda general";
+            encabezado.appendChild(titulo);
+            encabezado.appendChild(crearBoton("+ Nueva cita", "boton-chico", () => {
+                document.getElementById("panel-nueva-cita-rec").classList.toggle("oculto");
+            }));
+            contenedorPrincipal.appendChild(encabezado);
+
+            // --- Formulario para crear una cita a nombre de un paciente ---
+            const panel = document.createElement("section");
+            panel.id = "panel-nueva-cita-rec";
+            panel.className = "tarjeta oculto";
+            panel.style.marginBottom = "20px";
+
+            // El HTML fijo del panel no depende de datos de usuario.
+            panel.innerHTML =
+                '<h3 style="margin-top:0;">Registrar nueva cita</h3>' +
+                '<div class="campo"><label for="rc-paciente">Paciente</label>' +
+                '<select id="rc-paciente"></select></div>' +
+                '<div class="campo"><label for="rc-fecha">Fecha</label>' +
+                '<input type="date" id="rc-fecha" min="' + fechaDeHoy() + '"></div>' +
+                '<div class="campo"><label for="rc-hora">Hora</label>' +
+                '<input type="time" id="rc-hora"></div>' +
+                '<div class="campo"><label for="rc-motivo">Motivo</label>' +
+                '<input type="text" id="rc-motivo" maxlength="80"></div>' +
+                '<div class="mensaje-error" id="rc-error"></div>' +
+                '<button type="button" class="boton-principal" id="rc-guardar">Guardar cita</button>';
+            contenedorPrincipal.appendChild(panel);
+
+            // Las opciones del select SI dependen de datos (usuarios.json),
+            // por eso se arman con el DOM (textContent) y no con innerHTML.
+            const selectPaciente = document.getElementById("rc-paciente");
+            pacientes.forEach((p) => {
+                const opcion = document.createElement("option");
+                opcion.value = p.correo;
+                opcion.textContent = p.nombre;
+                selectPaciente.appendChild(opcion);
+            });
+
+            document.getElementById("rc-guardar").addEventListener("click", () => {
+                const correoPaciente = document.getElementById("rc-paciente").value;
+                const pacienteSeleccionado = pacientes.find((p) => p.correo === correoPaciente);
+                const fecha = document.getElementById("rc-fecha").value;
+                const hora = document.getElementById("rc-hora").value;
+                const motivo = limpiarEspacios(document.getElementById("rc-motivo").value);
+                const error = document.getElementById("rc-error");
+                error.textContent = "";
+
+                if (!pacienteSeleccionado || !fecha || !hora || !motivo) {
+                    error.textContent = "Complete todos los campos para registrar la cita.";
+                    return;
+                }
+
+                const citas = obtenerCitas() || [];
+                citas.push({
+                    id: generarIdCita(),
+                    pacienteCorreo: pacienteSeleccionado.correo,
+                    pacienteNombre: pacienteSeleccionado.nombre,
+                    odontologoCorreo: odontologo.correo,
+                    odontologoNombre: odontologo.nombre,
+                    fecha,
+                    hora,
+                    motivo,
+                    estado: "Confirmada"
+                });
+                guardarCitas(citas);
+
+                registrarEvento(sesion.correo, sesion.rol, ACCIONES.CITA_CREADA,
+                    "EXITO", "Cita creada para " + pacienteSeleccionado.correo + " el " + fecha + " " + hora);
+
+                pintarVistaRecepcionista(pacientes, odontologo);
+            });
+
+            // --- Tabla con todas las citas ---
+            const citas = (obtenerCitas() || [])
+                .sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
+
+            if (citas.length === 0) {
+                const vacio = document.createElement("p");
+                vacio.className = "vacio";
+                vacio.textContent = "No hay citas registradas todavía.";
+                contenedorPrincipal.appendChild(vacio);
+                return;
+            }
+
+            const envoltorio = document.createElement("div");
+            envoltorio.className = "tabla-scroll";
+
+            const tabla = document.createElement("table");
+            tabla.className = "tabla-datos";
+            tabla.innerHTML =
+                "<thead><tr>" +
+                "<th>Fecha</th><th>Hora</th><th>Paciente</th><th>Odontólogo</th>" +
+                "<th>Motivo</th><th>Estado</th><th>Acciones</th>" +
+                "</tr></thead>";
+
+            const cuerpo = document.createElement("tbody");
+
+            citas.forEach((cita) => {
+                const fila = document.createElement("tr");
+
+                [cita.fecha, cita.hora, cita.pacienteNombre, cita.odontologoNombre, cita.motivo, cita.estado]
+                    .forEach((valor) => {
+                        const celda = document.createElement("td");
+                        celda.textContent = valor; // textContent evita XSS
+                        fila.appendChild(celda);
+                    });
+
+                const celdaAcciones = document.createElement("td");
+                if (cita.estado !== "Cancelada") {
+                    const inputFecha = document.createElement("input");
+                    inputFecha.type = "date";
+                    inputFecha.value = cita.fecha;
+                    inputFecha.style.width = "128px";
+                    inputFecha.style.marginRight = "4px";
+
+                    const inputHora = document.createElement("input");
+                    inputHora.type = "time";
+                    inputHora.value = cita.hora;
+                    inputHora.style.width = "100px";
+                    inputHora.style.marginRight = "6px";
+
+                    const botonMover = crearBoton("Reprogramar", "boton-chico", () => {
+                        const citasActuales = obtenerCitas() || [];
+                        const citaActual = citasActuales.find((c) => c.id === cita.id);
+                        if (!citaActual) return;
+                        citaActual.fecha = inputFecha.value || citaActual.fecha;
+                        citaActual.hora = inputHora.value || citaActual.hora;
+                        guardarCitas(citasActuales);
+                        pintarVistaRecepcionista(pacientes, odontologo);
+                    });
+
+                    const botonCancelar = crearBoton("Cancelar", "boton-chico peligro", () => {
+                        cancelarCita(cita.id, sesion);
+                        pintarVistaRecepcionista(pacientes, odontologo);
+                    });
+
+                    celdaAcciones.appendChild(inputFecha);
+                    celdaAcciones.appendChild(inputHora);
+                    celdaAcciones.appendChild(botonMover);
+                    celdaAcciones.appendChild(document.createTextNode(" "));
+                    celdaAcciones.appendChild(botonCancelar);
+                } else {
+                    celdaAcciones.textContent = "—";
+                }
+                fila.appendChild(celdaAcciones);
+
+                cuerpo.appendChild(fila);
+            });
+
+            tabla.appendChild(cuerpo);
+            envoltorio.appendChild(tabla);
+            contenedorPrincipal.appendChild(envoltorio);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DentaCita - Iniciar sesión</title>
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+    <main class="contenedor-centrado">
+        <section class="tarjeta tarjeta-login">
+            <div class="logo-login">
+                <div class="diente">🦷</div>
+                <h1>DentaCita</h1>
+                <p>Consultorio Dental Sonrisa</p>
+            </div>
+
+            <!-- Mensaje general del formulario (errores de login, alertas de horario, etc.) -->
+            <div id="mensaje-formulario" class="mensaje-formulario oculto"></div>
+
+            <form id="form-login" novalidate>
+                <div class="campo">
+                    <label for="correo">Correo electrónico</label>
+                    <input type="text" id="correo" name="correo" autocomplete="username" maxlength="60">
+                    <div class="mensaje-error" id="error-correo"></div>
+                </div>
+
+                <div class="campo">
+                    <label for="contrasena">Contraseña</label>
+                    <input type="password" id="contrasena" name="contrasena" autocomplete="current-password" maxlength="64">
+                    <div class="mensaje-error" id="error-contrasena"></div>
+                </div>
+
+                <button type="submit" class="boton-principal" id="boton-ingresar">Ingresar</button>
+            </form>
+        </section>
+    </main>
+
+    <!-- Orden de carga: validacion y logs primero (auth.js depende de ambos) -->
+    <script src="js/validacion.js"></script>
+    <script src="js/logs.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // Si ya existe una sesion activa, se redirige directo a citas.html
+        if (obtenerSesion()) {
+            window.location.href = "citas.html";
+        }
+
+        const formulario = document.getElementById("form-login");
+        const campoCorreo = document.getElementById("correo");
+        const campoContrasena = document.getElementById("contrasena");
+        const errorCorreo = document.getElementById("error-correo");
+        const errorContrasena = document.getElementById("error-contrasena");
+        const mensajeFormulario = document.getElementById("mensaje-formulario");
+        const botonIngresar = document.getElementById("boton-ingresar");
+
+        function mostrarMensajeFormulario(texto, tipo) {
+            mensajeFormulario.textContent = texto; // textContent: nunca innerHTML con datos de usuario
+            mensajeFormulario.className = "mensaje-formulario " + tipo;
+        }
+
+        function limpiarMensajes() {
+            errorCorreo.textContent = "";
+            errorContrasena.textContent = "";
+            mensajeFormulario.className = "mensaje-formulario oculto";
+            mensajeFormulario.textContent = "";
+        }
+
+        formulario.addEventListener("submit", async function (evento) {
+            evento.preventDefault();
+            limpiarMensajes();
+
+            const valorCorreo = campoCorreo.value;
+            const valorContrasena = campoContrasena.value;
+
+            // Se registra (solo en consola de desarrollo, nunca en el log)
+            // si alguno de los campos trae caracteres sospechosos de XSS;
+            // de todas formas el escape se aplica antes de mostrar nada.
+            const huboIntentoSospechoso =
+                contieneCaracteresSospechosos(valorCorreo) ||
+                contieneCaracteresSospechosos(valorContrasena);
+
+            // Validacion de formato en el cliente
+            const errorDeCorreo = validarCorreo(valorCorreo);
+            const errorDeContrasena = validarContrasena(valorContrasena);
+
+            let hayErrores = false;
+            if (errorDeCorreo) {
+                errorCorreo.textContent = errorDeCorreo;
+                hayErrores = true;
+            }
+            if (errorDeContrasena) {
+                errorContrasena.textContent = errorDeContrasena;
+                hayErrores = true;
+            }
+            if (hayErrores) {
+                return;
+            }
+
+            const correoLimpio = limpiarEspacios(valorCorreo);
+
+            botonIngresar.disabled = true;
+            botonIngresar.textContent = "Verificando...";
+
+            try {
+                const resultado = await iniciarSesion(correoLimpio, valorContrasena);
+
+                if (!resultado.exito) {
+                    mostrarMensajeFormulario(resultado.mensaje, "error");
+                    return;
+                }
+
+                if (resultado.fueraDeHorario) {
+                    mostrarMensajeFormulario(
+                        "Acceso fuera del horario de atención (08:00 - 18:00). Se registró la alerta.",
+                        "alerta"
+                    );
+                    // Se espera un instante para que el usuario alcance a leer la alerta.
+                    setTimeout(function () {
+                        window.location.href = "citas.html";
+                    }, 1800);
+                    return;
+                }
+
+                window.location.href = "citas.html";
+            } catch (error) {
+                console.error(error);
+                mostrarMensajeFormulario(
+                    "No se pudo conectar con el sistema. Verifique que el proyecto se esté ejecutando con Live Server.",
+                    "error"
+                );
+            } finally {
+                botonIngresar.disabled = false;
+                botonIngresar.textContent = "Ingresar";
+            }
+        });
+    </script>
+</body>
+</html>
