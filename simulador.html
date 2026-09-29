@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DentaCita - Simulador de incidentes</title>
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+    <div class="banner-simulacion">MODO SIMULACIÓN – entorno académico</div>
+
+    <header class="barra-superior">
+        <h1>🦷 DentaCita · Simulador de incidentes</h1>
+        <div id="barra-sesion"></div>
+    </header>
+
+    <main class="contenedor ancho">
+        <p>
+            Cada botón genera eventos <strong>simulados</strong> (su detalle empieza con
+            «SIMULADO») y luego el sistema les aplica las mismas reglas de detección que
+            a la actividad real. No se modifican cuentas ni bloqueos reales.
+        </p>
+
+        <section class="rejilla-escenarios">
+            <div class="tarjeta tarjeta-escenario">
+                <h3>Escenario 1 · Fuerza bruta</h3>
+                <p>5 intentos fallidos contra <em>recepcion@sonrisa.ec</em> en 1 minuto, con bloqueo de la cuenta.</p>
+                <button type="button" class="boton-principal" id="boton-esc1">Ejecutar escenario 1</button>
+            </div>
+            <div class="tarjeta tarjeta-escenario">
+                <h3>Escenario 2 · Fuera de horario</h3>
+                <p>Ingreso de <em>recepcion@sonrisa.ec</em> a las 23:40.</p>
+                <button type="button" class="boton-principal" id="boton-esc2">Ejecutar escenario 2</button>
+            </div>
+            <div class="tarjeta tarjeta-escenario">
+                <h3>Escenario 3 · Escalamiento</h3>
+                <p><em>paciente1@sonrisa.ec</em> intenta abrir panel-logs.html y simulador.html.</p>
+                <button type="button" class="boton-principal" id="boton-esc3">Ejecutar escenario 3</button>
+            </div>
+            <div class="tarjeta tarjeta-escenario">
+                <h3>Escenario 4 · Enumeración</h3>
+                <p>Intentos de acceso con 4 correos distintos que no existen.</p>
+                <button type="button" class="boton-principal" id="boton-esc4">Ejecutar escenario 4</button>
+            </div>
+        </section>
+
+        <section class="seccion-panel">
+            <h3>Resultado de la última simulación</h3>
+            <div id="resultado-simulacion">
+                <p class="vacio">Todavía no se ejecutó ningún escenario.</p>
+            </div>
+        </section>
+
+        <section class="seccion-panel">
+            <h3>Limpieza</h3>
+            <p>Borra únicamente los eventos simulados (y sus alertas). Los eventos reales no se tocan.</p>
+            <button type="button" class="boton-chico peligro" id="boton-borrar">Borrar eventos simulados</button>
+            <div class="mensaje-formulario oculto" id="mensaje-limpieza" style="margin-top:12px"></div>
+        </section>
+    </main>
+
+    <!-- Orden de carga: validacion y logs primero (auth.js depende de ambos) -->
+    <script src="js/validacion.js"></script>
+    <script src="js/logs.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/simulador.js"></script>
+    <script>
+        // Solo el administrador puede ver esta pagina. Cualquier otro rol
+        // que llegue aqui queda registrado como ACCESO_DENEGADO.
+        const sesion = verificarAcceso(["administrador"]);
+
+        if (sesion) {
+            pintarBarraSesion(sesion);
+            agregarEnlaceBarra("Registro de eventos", "panel-logs.html");
+
+            document.getElementById("boton-esc1").addEventListener("click", () => ejecutar(simularFuerzaBruta, "Escenario 1 · Fuerza bruta"));
+            document.getElementById("boton-esc2").addEventListener("click", () => ejecutar(simularAccesoFueraDeHorario, "Escenario 2 · Fuera de horario"));
+            document.getElementById("boton-esc3").addEventListener("click", () => ejecutar(simularEscalamientoPrivilegios, "Escenario 3 · Escalamiento"));
+            document.getElementById("boton-esc4").addEventListener("click", () => ejecutar(simularEnumeracionCuentas, "Escenario 4 · Enumeración"));
+            document.getElementById("boton-borrar").addEventListener("click", borrarSimulados);
+        }
+
+        /**
+         * Ejecuta un escenario y muestra los eventos generados y las alertas
+         * que detectaron las reglas.
+         */
+        function ejecutar(escenario, titulo) {
+            const corrida = escenario();
+            const resumen = resumirCorrida(corrida);
+
+            const contenedor = document.getElementById("resultado-simulacion");
+            contenedor.innerHTML = "";
+
+            const encabezado = document.createElement("p");
+            encabezado.textContent = titulo + ": se generaron " + resumen.totalEventos +
+                " eventos simulados (incluye las alertas) y " + resumen.alertas.length +
+                " alerta(s) de seguridad.";
+            contenedor.appendChild(encabezado);
+
+            if (resumen.alertas.length === 0) {
+                const vacio = document.createElement("p");
+                vacio.className = "vacio";
+                vacio.textContent = "Las reglas de detección no generaron alertas.";
+                contenedor.appendChild(vacio);
+                return;
+            }
+
+            resumen.alertas.forEach((alerta) => {
+                contenedor.appendChild(crearTarjetaAlerta(alerta));
+            });
+        }
+
+        function borrarSimulados() {
+            if (!confirm("¿Borrar todos los eventos simulados? Los eventos reales se conservan.")) {
+                return;
+            }
+            const cantidad = borrarEventosSimulados(sesion);
+
+            const mensaje = document.getElementById("mensaje-limpieza");
+            mensaje.textContent = cantidad + " evento(s) simulado(s) eliminado(s).";
+            mensaje.className = "mensaje-formulario exito";
+            document.getElementById("resultado-simulacion").innerHTML =
+                '<p class="vacio">Todavía no se ejecutó ningún escenario.</p>';
+        }
+    </script>
+</body>
+</html>
