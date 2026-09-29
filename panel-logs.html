@@ -13,40 +13,110 @@
         <div id="barra-sesion"></div>
     </header>
 
-    <main class="contenedor">
-        <div class="encabezado-seccion">
-            <h2>Eventos de seguridad</h2>
-        </div>
+    <main class="contenedor ancho">
 
-        <!--
-            Version inicial: solo se muestra la tabla completa de eventos,
-            del mas reciente al mas antiguo.
+        <!-- Tarjetas resumen -->
+        <section class="rejilla-resumen" id="resumen">
+            <div class="tarjeta tarjeta-resumen">
+                <span class="cifra" id="cifra-total">0</span>
+                <span class="rotulo">Total de eventos</span>
+            </div>
+            <div class="tarjeta tarjeta-resumen exito">
+                <span class="cifra" id="cifra-exitosos">0</span>
+                <span class="rotulo">Logins exitosos</span>
+            </div>
+            <div class="tarjeta tarjeta-resumen fallo">
+                <span class="cifra" id="cifra-fallidos">0</span>
+                <span class="rotulo">Logins fallidos</span>
+            </div>
+            <div class="tarjeta tarjeta-resumen fallo">
+                <span class="cifra" id="cifra-bloqueos">0</span>
+                <span class="rotulo">Bloqueos</span>
+            </div>
+            <div class="tarjeta tarjeta-resumen alerta">
+                <span class="cifra" id="cifra-alertas">0</span>
+                <span class="rotulo">Alertas activas</span>
+            </div>
+        </section>
 
-            Preparado para una siguiente etapa donde se agregaran:
-              - Filtros por usuario, rol, accion y rango de fechas
-                (el arreglo de eventos ya trae todos los campos necesarios)
-              - Resaltado/alerta visual para eventos criticos
-                (la clase "insignia" en estilos.css ya soporta EXITO/FALLO/ALERTA)
-              - Boton de exportacion a JSON
-                (la funcion exportarEventosComoJSON() en js/logs.js ya la genera)
-        -->
-        <div class="tabla-scroll">
-            <table class="tabla-datos" id="tabla-eventos">
-                <thead>
-                    <tr>
-                        <th>Fecha y hora</th>
-                        <th>Usuario</th>
-                        <th>Rol</th>
-                        <th>Acción</th>
-                        <th>Resultado</th>
-                        <th>Detalle</th>
-                    </tr>
-                </thead>
-                <tbody id="cuerpo-tabla-eventos"></tbody>
-            </table>
-        </div>
+        <!-- Alertas activas -->
+        <section class="seccion-panel">
+            <h3>Alertas activas</h3>
+            <div id="lista-alertas"></div>
+            <p class="vacio oculto" id="mensaje-sin-alertas">No hay alertas activas.</p>
+        </section>
 
-        <p class="vacio oculto" id="mensaje-sin-eventos">Todavía no hay eventos registrados.</p>
+        <!-- Filtros -->
+        <section class="seccion-panel">
+            <div class="encabezado-seccion">
+                <h3 style="margin:0">Registro de eventos</h3>
+                <div class="acciones-panel">
+                    <button type="button" class="boton-chico" id="boton-exportar">Exportar registro (.json)</button>
+                </div>
+            </div>
+
+            <form class="tarjeta filtros" id="form-filtros" autocomplete="off">
+                <div class="campo">
+                    <label for="filtro-usuario">Usuario</label>
+                    <input type="text" id="filtro-usuario" maxlength="60" placeholder="correo o parte del correo">
+                </div>
+                <div class="campo">
+                    <label for="filtro-rol">Rol</label>
+                    <select id="filtro-rol"><option value="">Todos</option></select>
+                </div>
+                <div class="campo">
+                    <label for="filtro-accion">Acción</label>
+                    <select id="filtro-accion"><option value="">Todas</option></select>
+                </div>
+                <div class="campo">
+                    <label for="filtro-resultado">Resultado</label>
+                    <select id="filtro-resultado">
+                        <option value="">Todos</option>
+                        <option value="EXITO">EXITO</option>
+                        <option value="FALLO">FALLO</option>
+                        <option value="ALERTA">ALERTA</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label for="filtro-desde">Desde</label>
+                    <input type="date" id="filtro-desde">
+                </div>
+                <div class="campo">
+                    <label for="filtro-hasta">Hasta</label>
+                    <input type="date" id="filtro-hasta">
+                </div>
+                <div class="campo">
+                    <button type="button" class="boton-chico" id="boton-limpiar">Limpiar filtros</button>
+                </div>
+            </form>
+
+            <p class="mensaje-error" id="error-filtros"></p>
+            <p class="contador-filtro" id="contador-filtro"></p>
+
+            <!--
+                Integridad del registro: la tabla es solo de lectura. No hay
+                botones para editar ni borrar eventos; cada evento tiene un
+                id unico y las alertas se "revisan" agregando un evento nuevo.
+            -->
+            <div class="tabla-scroll">
+                <table class="tabla-datos" id="tabla-eventos">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha y hora</th>
+                            <th>Usuario</th>
+                            <th>Rol</th>
+                            <th>Acción</th>
+                            <th>Resultado</th>
+                            <th>Detalle</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpo-tabla-eventos"></tbody>
+                </table>
+            </div>
+
+            <p class="vacio oculto" id="mensaje-sin-eventos">No hay eventos que coincidan.</p>
+        </section>
     </main>
 
     <!-- Orden de carga: validacion y logs primero (auth.js depende de ambos) -->
@@ -59,32 +129,142 @@
 
         if (sesion) {
             pintarBarraSesion(sesion);
+            agregarEnlaceBarra("Simulador de incidentes", "simulador.html");
+            llenarListasDeFiltros();
+            enlazarEventos();
+            refrescarPanel();
+        }
+
+        // ------------------------------------------------------------
+        // Filtros
+        // ------------------------------------------------------------
+
+        /** Llena los selectores de rol y accion con los valores conocidos. */
+        function llenarListasDeFiltros() {
+            const selectorRol = document.getElementById("filtro-rol");
+            ROLES_REGISTRO.forEach((rol) => {
+                const opcion = document.createElement("option");
+                opcion.value = rol;
+                opcion.textContent = rol;
+                selectorRol.appendChild(opcion);
+            });
+
+            const selectorAccion = document.getElementById("filtro-accion");
+            Object.values(ACCIONES).forEach((accion) => {
+                const opcion = document.createElement("option");
+                opcion.value = accion;
+                opcion.textContent = accion;
+                selectorAccion.appendChild(opcion);
+            });
+        }
+
+        function leerFiltros() {
+            return {
+                usuario: document.getElementById("filtro-usuario").value,
+                rol: document.getElementById("filtro-rol").value,
+                accion: document.getElementById("filtro-accion").value,
+                resultado: document.getElementById("filtro-resultado").value,
+                desde: document.getElementById("filtro-desde").value,
+                hasta: document.getElementById("filtro-hasta").value
+            };
+        }
+
+        function enlazarEventos() {
+            // Cada cambio en un filtro vuelve a pintar la tabla.
+            document.getElementById("form-filtros")
+                .addEventListener("input", pintarTablaEventos);
+
+            document.getElementById("boton-limpiar").addEventListener("click", function () {
+                document.getElementById("form-filtros").reset();
+                pintarTablaEventos();
+            });
+
+            document.getElementById("boton-exportar").addEventListener("click", exportarRegistro);
+        }
+
+        // ------------------------------------------------------------
+        // Pintado del panel
+        // ------------------------------------------------------------
+
+        /** Vuelve a pintar tarjetas, alertas y tabla con los datos actuales. */
+        function refrescarPanel() {
+            pintarResumen();
+            pintarAlertasActivas();
             pintarTablaEventos();
         }
 
+        function pintarResumen() {
+            const resumen = calcularResumen(obtenerEventos());
+            document.getElementById("cifra-total").textContent = resumen.total;
+            document.getElementById("cifra-exitosos").textContent = resumen.loginsExitosos;
+            document.getElementById("cifra-fallidos").textContent = resumen.loginsFallidos;
+            document.getElementById("cifra-bloqueos").textContent = resumen.bloqueos;
+            document.getElementById("cifra-alertas").textContent = resumen.alertasActivas;
+        }
+
+        function pintarAlertasActivas() {
+            const lista = document.getElementById("lista-alertas");
+            const mensajeVacio = document.getElementById("mensaje-sin-alertas");
+            const alertas = obtenerAlertasActivas();
+
+            lista.innerHTML = "";
+            mensajeVacio.classList.toggle("oculto", alertas.length > 0);
+
+            alertas.forEach((alerta) => {
+                lista.appendChild(crearTarjetaAlerta(alerta, revisarAlerta));
+            });
+        }
+
+        function revisarAlerta(idAlerta) {
+            marcarAlertaRevisada(idAlerta, sesion);
+            refrescarPanel();
+        }
+
         function pintarTablaEventos() {
-            const eventos = obtenerEventos().slice().reverse(); // mas reciente primero
+            const todos = obtenerEventos();
+            const filtros = leerFiltros();
+            const errorFiltros = document.getElementById("error-filtros");
+
+            // Validacion del rango de fechas
+            if (filtros.desde && filtros.hasta && filtros.desde > filtros.hasta) {
+                errorFiltros.textContent = "La fecha «Desde» no puede ser posterior a «Hasta».";
+                return;
+            }
+            errorFiltros.textContent = "";
+
+            const eventos = ordenarRecientesPrimero(filtrarEventos(todos, filtros));
             const cuerpo = document.getElementById("cuerpo-tabla-eventos");
             const mensajeVacio = document.getElementById("mensaje-sin-eventos");
             const tabla = document.getElementById("tabla-eventos");
 
-            cuerpo.innerHTML = "";
+            document.getElementById("contador-filtro").textContent =
+                "Mostrando " + eventos.length + " de " + todos.length + " eventos";
 
-            if (eventos.length === 0) {
-                tabla.classList.add("oculto");
-                mensajeVacio.classList.remove("oculto");
-                return;
-            }
+            cuerpo.innerHTML = "";
+            tabla.classList.toggle("oculto", eventos.length === 0);
+            mensajeVacio.classList.toggle("oculto", eventos.length > 0);
+            mensajeVacio.textContent = todos.length === 0
+                ? "Todavía no hay eventos registrados."
+                : "No hay eventos que coincidan con los filtros.";
 
             eventos.forEach((evento) => {
                 const fila = document.createElement("tr");
+                if (evento.simulado) {
+                    fila.className = "fila-simulada";
+                }
+
+                // Todas las celdas usan textContent para evitar XSS.
+                const celdaId = document.createElement("td");
+                celdaId.className = "id-evento";
+                celdaId.textContent = evento.id;
+                fila.appendChild(celdaId);
 
                 const celdaFecha = document.createElement("td");
                 celdaFecha.textContent = new Date(evento.fecha_hora).toLocaleString("es-EC");
                 fila.appendChild(celdaFecha);
 
                 const celdaUsuario = document.createElement("td");
-                celdaUsuario.textContent = evento.usuario; // textContent evita XSS
+                celdaUsuario.textContent = evento.usuario;
                 fila.appendChild(celdaUsuario);
 
                 const celdaRol = document.createElement("td");
@@ -108,6 +288,37 @@
 
                 cuerpo.appendChild(fila);
             });
+        }
+
+        // ------------------------------------------------------------
+        // Exportacion
+        // ------------------------------------------------------------
+
+        /** Fecha local de hoy con formato AAAA-MM-DD. */
+        function fechaDeHoy() {
+            const ahora = new Date();
+            const mes = String(ahora.getMonth() + 1).padStart(2, "0");
+            const dia = String(ahora.getDate()).padStart(2, "0");
+            return ahora.getFullYear() + "-" + mes + "-" + dia;
+        }
+
+        /** Descarga el registro completo como dentacita_logs_AAAA-MM-DD.json */
+        function exportarRegistro() {
+            // Se exporta primero el contenido y despues se deja constancia
+            // de la exportacion, para no alterar el archivo descargado.
+            const contenido = exportarEventosComoJSON();
+            const enlace = document.createElement("a");
+            const archivo = new Blob([contenido], { type: "application/json" });
+            enlace.href = URL.createObjectURL(archivo);
+            enlace.download = "dentacita_logs_" + fechaDeHoy() + ".json";
+            document.body.appendChild(enlace);
+            enlace.click();
+            document.body.removeChild(enlace);
+            URL.revokeObjectURL(enlace.href);
+
+            registrarEvento(sesion.correo, sesion.rol, ACCIONES.LOG_EXPORTADO,
+                "EXITO", "Exportación del registro completo (" + enlace.download + ")");
+            refrescarPanel();
         }
     </script>
 </body>

@@ -347,6 +347,164 @@ table.tabla-datos tbody tr:hover {
     display: none !important;
 }
 
+/* ---------- Panel de registro: resumen, filtros y alertas ---------- */
+
+.boton-secundario.enlace {
+    text-decoration: none;
+    display: inline-block;
+}
+
+/* El panel y el simulador necesitan mas ancho que la agenda */
+.contenedor.ancho {
+    max-width: 1180px;
+}
+
+.rejilla-resumen {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.tarjeta-resumen {
+    padding: 14px 16px;
+    text-align: center;
+}
+
+.tarjeta-resumen .cifra {
+    display: block;
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: var(--azul-oscuro);
+}
+
+.tarjeta-resumen .rotulo {
+    font-size: 0.82rem;
+    color: #5b6b78;
+}
+
+.tarjeta-resumen.exito .cifra { color: var(--verde-exito); }
+.tarjeta-resumen.fallo .cifra { color: var(--rojo-error); }
+.tarjeta-resumen.alerta .cifra { color: #d35400; }
+
+.seccion-panel {
+    margin-bottom: 26px;
+}
+
+.seccion-panel h3 {
+    color: var(--azul-oscuro);
+    margin: 0 0 10px;
+}
+
+/* Alertas: rojo para nivel ALTO, naranja para nivel MEDIO */
+.tarjeta-alerta {
+    border-radius: 10px;
+    border-left: 6px solid;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+}
+
+.tarjeta-alerta p {
+    margin: 6px 0;
+    font-size: 0.92rem;
+}
+
+.tarjeta-alerta.nivel-alto {
+    background: #fdecea;
+    border-color: var(--rojo-error);
+    color: #7b241c;
+}
+
+.tarjeta-alerta.nivel-medio {
+    background: #fff1e0;
+    border-color: #e67e22;
+    color: #7e4a0c;
+}
+
+.tarjeta-alerta .pie-alerta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.etiqueta-simulado {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: #5b2c83;
+    color: var(--blanco);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.filtros {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    align-items: end;
+    padding: 16px;
+    margin-bottom: 14px;
+}
+
+.filtros .campo {
+    margin-bottom: 0;
+}
+
+.acciones-panel {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.contador-filtro {
+    font-size: 0.85rem;
+    color: #5b6b78;
+    margin: 0 0 8px;
+}
+
+td.id-evento {
+    font-family: Consolas, monospace;
+    font-size: 0.75rem;
+    color: #5b6b78;
+    white-space: nowrap;
+}
+
+tr.fila-simulada {
+    background: #f6effb;
+}
+
+/* ---------- Simulador de incidentes ---------- */
+
+.banner-simulacion {
+    background: #5b2c83;
+    color: var(--blanco);
+    text-align: center;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 10px 16px;
+}
+
+.rejilla-escenarios {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
+}
+
+.tarjeta-escenario h3 {
+    margin: 0 0 6px;
+    color: var(--azul-oscuro);
+    font-size: 1.05rem;
+}
+
+.tarjeta-escenario p {
+    font-size: 0.9rem;
+    margin: 0 0 12px;
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 560px) {

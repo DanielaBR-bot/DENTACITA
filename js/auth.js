@@ -152,7 +152,10 @@ async function iniciarSesion(correoIngresado, contrasenaIngresada) {
         guardarEstadoBloqueo(correo, { intentos: 0, bloqueadoHasta: null });
 
         // Guardar la sesion activa (nunca se guarda la contrasena).
+        // El id de sesion permite agrupar eventos (regla de escalamiento
+        // de privilegios); es un valor aleatorio sin relacion con la clave.
         const sesion = {
+            id: generarId("SES"),
             correo: usuario.correo,
             nombre: usuario.nombre,
             rol: usuario.rol
@@ -291,4 +294,20 @@ function pintarBarraSesion(sesion) {
 
     contenedor.appendChild(spanNombre);
     contenedor.appendChild(boton);
+}
+
+/**
+ * Agrega un enlace de navegacion en la barra de sesion, justo antes del
+ * boton "Cerrar sesión". Se debe llamar despues de pintarBarraSesion.
+ */
+function agregarEnlaceBarra(texto, destino) {
+    const contenedor = document.getElementById("barra-sesion");
+    if (!contenedor) return;
+
+    const enlace = document.createElement("a");
+    enlace.href = destino;
+    enlace.textContent = texto;
+    enlace.className = "boton-secundario enlace";
+
+    contenedor.insertBefore(enlace, contenedor.lastChild);
 }
