@@ -26,5 +26,12 @@
     "correo": "paciente2@sonrisa.ec",
     "hashContrasena": "875123109f4879bda471b3b005426761570da6166d3642790622c1ea97c2acc6",
     "rol": "paciente"
+  },
+  {
+    "id": "ADM001",
+    "nombre": "Sofia Vega",
+    "correo": "admin@sonrisa.ec",
+    "hashContrasena": "81d13c99dfd9c7251d5f96773a4d829e7c94d36a86e94a285b2b657f626e0f2a",
+    "rol": "administrador"
   }
 ]

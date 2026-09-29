@@ -31,27 +31,7 @@
 
         if (sesion) {
             pintarBarraSesion(sesion);
-            agregarEnlaceLogsSiCorresponde(sesion);
             iniciarPagina(sesion);
-        }
-
-        /**
-         * Si el usuario es recepcionista, agrega un enlace al panel de
-         * registro de eventos junto al boton de cerrar sesion.
-         */
-        function agregarEnlaceLogsSiCorresponde(sesion) {
-            if (sesion.rol !== "recepcionista") return;
-
-            const contenedorSesion = document.getElementById("barra-sesion");
-            const enlace = document.createElement("a");
-            enlace.href = "panel-logs.html";
-            enlace.textContent = "Registro de eventos";
-            enlace.className = "boton-secundario";
-            enlace.style.textDecoration = "none";
-            enlace.style.display = "inline-block";
-
-            // Se inserta antes del boton "Cerrar sesión" (ultimo hijo actual)
-            contenedorSesion.insertBefore(enlace, contenedorSesion.lastChild);
         }
 
         // ----------------------------------------------------------------

@@ -248,11 +248,23 @@ function verificarAcceso(rolesPermitidos) {
         registrarEvento(sesion.correo, sesion.rol, ACCIONES.ACCESO_DENEGADO,
             "FALLO", "Intento de acceso no autorizado a " + paginaActual);
         // Se redirige a la pagina que si le corresponde a su rol.
-        window.location.href = "citas.html";
+        window.location.href = paginaInicioPorRol(sesion.rol);
         return null;
     }
 
     return sesion;
+}
+
+/**
+ * Devuelve la pagina de inicio que corresponde a cada rol:
+ * el administrador solo trabaja con el registro de eventos y el resto
+ * de roles con la agenda de citas.
+ *
+ * @param {string} rol
+ * @returns {string}
+ */
+function paginaInicioPorRol(rol) {
+    return rol === "administrador" ? "panel-logs.html" : "citas.html";
 }
 
 /**

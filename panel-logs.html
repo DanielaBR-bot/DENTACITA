@@ -16,7 +16,6 @@
     <main class="contenedor">
         <div class="encabezado-seccion">
             <h2>Eventos de seguridad</h2>
-            <a href="citas.html" class="boton-chico">← Volver a la agenda</a>
         </div>
 
         <!--
@@ -55,8 +54,8 @@
     <script src="js/logs.js"></script>
     <script src="js/auth.js"></script>
     <script>
-        // Solo la recepcionista puede ver esta pagina.
-        const sesion = verificarAcceso(["recepcionista"]);
+        // Solo el administrador puede ver esta pagina.
+        const sesion = verificarAcceso(["administrador"]);
 
         if (sesion) {
             pintarBarraSesion(sesion);

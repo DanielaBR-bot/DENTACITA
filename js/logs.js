@@ -38,7 +38,7 @@ const ACCIONES = {
  * Registra un evento en el localStorage.
  *
  * @param {string} usuario  Correo del usuario (o "desconocido" si no aplica)
- * @param {string} rol      Rol del usuario (paciente/recepcionista/odontologo/desconocido)
+ * @param {string} rol      Rol del usuario (paciente/recepcionista/odontologo/administrador/desconocido)
  * @param {string} accion   Una de las constantes de ACCIONES
  * @param {string} resultado "EXITO" | "FALLO" | "ALERTA" (texto libre corto)
  * @param {string} detalle  Descripcion breve, sin datos sensibles

@@ -14,8 +14,9 @@ Prototipo académico de agendamiento de citas para el consultorio ficticio **"Co
 | Rol | Qué puede hacer |
 |---|---|
 | **Paciente** | Ver y solicitar solo sus propias citas |
-| **Recepcionista** | Ver todas las citas, crearlas, reprogramarlas y cancelarlas; consultar el registro de eventos de seguridad |
+| **Recepcionista** | Ver todas las citas, crearlas, reprogramarlas y cancelarlas (no tiene acceso al registro de eventos) |
 | **Odontólogo** | Ver únicamente su agenda del día actual |
+| **Administrador** | Consultar el registro de eventos de seguridad; no accede a la agenda de citas |
 
 ## Usuarios de prueba
 
@@ -27,6 +28,7 @@ Solo para el prototipo. En `data/usuarios.json` las contraseñas están guardada
 | Odontólogo | odontologo@sonrisa.ec | `Odontologo#2024` |
 | Paciente | paciente1@sonrisa.ec | `Paciente#2024` |
 | Paciente | paciente2@sonrisa.ec | `Paciente#2025` |
+| Administrador | admin@sonrisa.ec | `Admin#2024` |
 
 ## Ejecutarlo en tu computadora
 
@@ -67,7 +69,8 @@ Como todo corre en el navegador, los datos son locales a cada navegador y **no s
 | Mitigación de temporización | Hash "señuelo" cuando el correo no existe, para que el tiempo de respuesta no delate cuentas válidas | `js/auth.js` |
 | Bloqueo por intentos | 3 intentos fallidos → cuenta bloqueada 5 minutos | `js/auth.js` |
 | Control de sesión | Solo se guardan correo, nombre y rol; nunca la contraseña ni el hash | `js/auth.js` |
-| Control de acceso por rol | Cada página valida el rol; si no corresponde, redirige y registra `ACCESO_DENEGADO` | `js/auth.js` (`verificarAcceso`) |
+| Control de acceso por rol | Cada página valida el rol; si no corresponde, redirige a la página de su rol y registra `ACCESO_DENEGADO` | `js/auth.js` (`verificarAcceso`, `paginaInicioPorRol`) |
+| Mínimo privilegio | El registro de eventos es exclusivo del rol `administrador`; recepción, odontología y pacientes no lo ven | `panel-logs.html` |
 | Alerta de horario | Ingreso fuera de 08:00-18:00: se permite, pero se registra `ACCESO_FUERA_HORARIO` como alerta | `js/auth.js` |
 | Registro de eventos | Login, bloqueos, accesos denegados, citas y logout, con fecha, usuario, rol, acción y resultado; nunca contraseñas | `js/logs.js`, `panel-logs.html` |
 | Cierre de sesión | Botón en todas las páginas internas; limpia la sesión y registra `LOGOUT` | `js/auth.js` |
@@ -84,10 +87,10 @@ Casos sugeridos para comprobar los controles:
 | P4 | Credenciales incorrectas | Correo válido con contraseña equivocada | Mensaje genérico e intento registrado en logs |
 | P5 | Bloqueo | Fallar 3 veces seguidas | Cuenta bloqueada 5 minutos (`CUENTA_BLOQUEADA`) |
 | P6 | Intento de XSS | Escribir `<script>alert(1)</script>` en el correo | Se rechaza o se escapa; no se ejecuta nada |
-| P7 | Acceso por rol | Como paciente, abrir `panel-logs.html` por URL | Redirección y evento `ACCESO_DENEGADO` |
+| P7 | Acceso por rol | Como paciente o recepcionista, abrir `panel-logs.html` por URL | Redirección a la agenda y evento `ACCESO_DENEGADO` |
 | P8 | Comportamiento por rol | Entrar con cada usuario | Cada uno ve solo lo que le corresponde |
 
-Después de las pruebas, entra como recepcionista a `panel-logs.html` para ver los eventos registrados.
+Después de las pruebas, entra como administrador (`admin@sonrisa.ec`) para ver los eventos registrados en `panel-logs.html`.
 
 ## Estructura del proyecto
 
@@ -95,7 +98,7 @@ Después de las pruebas, entra como recepcionista a `panel-logs.html` para ver l
 dentacita/
 ├── index.html          Inicio de sesión
 ├── citas.html          Agenda según el rol
-├── panel-logs.html     Registro de eventos (solo recepcionista)
+├── panel-logs.html     Registro de eventos (solo administrador)
 ├── css/estilos.css
 ├── js/
 │   ├── validacion.js   Reglas de validación y sanitización

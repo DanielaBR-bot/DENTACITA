@@ -42,9 +42,10 @@
     <script src="js/logs.js"></script>
     <script src="js/auth.js"></script>
     <script>
-        // Si ya existe una sesion activa, se redirige directo a citas.html
-        if (obtenerSesion()) {
-            window.location.href = "citas.html";
+        // Si ya existe una sesion activa, se redirige directo a la pagina de su rol
+        const sesionExistente = obtenerSesion();
+        if (sesionExistente) {
+            window.location.href = paginaInicioPorRol(sesionExistente.rol);
         }
 
         const formulario = document.getElementById("form-login");
@@ -118,12 +119,12 @@
                     );
                     // Se espera un instante para que el usuario alcance a leer la alerta.
                     setTimeout(function () {
-                        window.location.href = "citas.html";
+                        window.location.href = paginaInicioPorRol(obtenerSesion().rol);
                     }, 1800);
                     return;
                 }
 
-                window.location.href = "citas.html";
+                window.location.href = paginaInicioPorRol(obtenerSesion().rol);
             } catch (error) {
                 console.error(error);
                 mostrarMensajeFormulario(
