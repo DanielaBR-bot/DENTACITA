@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DentaCita - Registro de eventos</title>
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+    <header class="barra-superior">
+        <h1>🦷 DentaCita · Registro de eventos</h1>
+        <div id="barra-sesion"></div>
+    </header>
+
+    <main class="contenedor">
+        <div class="encabezado-seccion">
+            <h2>Eventos de seguridad</h2>
+            <a href="citas.html" class="boton-chico">← Volver a la agenda</a>
+        </div>
+
+        <!--
+            Version inicial: solo se muestra la tabla completa de eventos,
+            del mas reciente al mas antiguo.
+
+            Preparado para una siguiente etapa donde se agregaran:
+              - Filtros por usuario, rol, accion y rango de fechas
+                (el arreglo de eventos ya trae todos los campos necesarios)
+              - Resaltado/alerta visual para eventos criticos
+                (la clase "insignia" en estilos.css ya soporta EXITO/FALLO/ALERTA)
+              - Boton de exportacion a JSON
+                (la funcion exportarEventosComoJSON() en js/logs.js ya la genera)
+        -->
+        <div class="tabla-scroll">
+            <table class="tabla-datos" id="tabla-eventos">
+                <thead>
+                    <tr>
+                        <th>Fecha y hora</th>
+                        <th>Usuario</th>
+                        <th>Rol</th>
+                        <th>Acción</th>
+                        <th>Resultado</th>
+                        <th>Detalle</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpo-tabla-eventos"></tbody>
+            </table>
+        </div>
+
+        <p class="vacio oculto" id="mensaje-sin-eventos">Todavía no hay eventos registrados.</p>
+    </main>
+
+    <!-- Orden de carga: validacion y logs primero (auth.js depende de ambos) -->
+    <script src="js/validacion.js"></script>
+    <script src="js/logs.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // Solo la recepcionista puede ver esta pagina.
+        const sesion = verificarAcceso(["recepcionista"]);
+
+        if (sesion) {
+            pintarBarraSesion(sesion);
+            pintarTablaEventos();
+        }
+
+        function pintarTablaEventos() {
+            const eventos = obtenerEventos().slice().reverse(); // mas reciente primero
+            const cuerpo = document.getElementById("cuerpo-tabla-eventos");
+            const mensajeVacio = document.getElementById("mensaje-sin-eventos");
+            const tabla = document.getElementById("tabla-eventos");
+
+            cuerpo.innerHTML = "";
+
+            if (eventos.length === 0) {
+                tabla.classList.add("oculto");
+                mensajeVacio.classList.remove("oculto");
+                return;
+            }
+
+            eventos.forEach((evento) => {
+                const fila = document.createElement("tr");
+
+                const celdaFecha = document.createElement("td");
+                celdaFecha.textContent = new Date(evento.fecha_hora).toLocaleString("es-EC");
+                fila.appendChild(celdaFecha);
+
+                const celdaUsuario = document.createElement("td");
+                celdaUsuario.textContent = evento.usuario; // textContent evita XSS
+                fila.appendChild(celdaUsuario);
+
+                const celdaRol = document.createElement("td");
+                celdaRol.textContent = evento.rol;
+                fila.appendChild(celdaRol);
+
+                const celdaAccion = document.createElement("td");
+                celdaAccion.textContent = evento.accion;
+                fila.appendChild(celdaAccion);
+
+                const celdaResultado = document.createElement("td");
+                const insignia = document.createElement("span");
+                insignia.className = "insignia " + evento.resultado;
+                insignia.textContent = evento.resultado;
+                celdaResultado.appendChild(insignia);
+                fila.appendChild(celdaResultado);
+
+                const celdaDetalle = document.createElement("td");
+                celdaDetalle.textContent = evento.detalle;
+                fila.appendChild(celdaDetalle);
+
+                cuerpo.appendChild(fila);
+            });
+        }
+    </script>
+</body>
+</html>
