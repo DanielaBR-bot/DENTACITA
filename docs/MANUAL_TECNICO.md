@@ -176,11 +176,12 @@ Umbrales y ventana son constantes al inicio de `js/logs.js` (`VENTANA_DETECCION_
 
 ## 8. Pruebas automatizadas
 
-`pruebas.html` ejecuta 26 casos contra el código real:
+`pruebas.html` ejecuta 27 casos contra el código real:
 
 | Grupo | Casos | Qué verifican |
 |---|---|---|
-| Login | P1–P9 | Validación, mensajes genéricos, bloqueo, XSS, control de acceso por rol |
+| Login | P1–P9 | Validación, mensajes genéricos, bloqueo, XSS, acceso denegado de paciente y recepcionista a `panel-logs.html`, y acceso del administrador |
+| Control de acceso | M6 | Matriz completa: qué páginas abre cada uno de los 4 roles |
 | MFA | P10–P15 | Código correcto, incorrecto, agotado, expirado, saltarse el MFA, roles sin MFA |
 | Simulador | E1–E4 | Cada escenario genera exactamente la alerta esperada |
 | Falsos positivos | F1–F7 | Actividad legítima que no debe generar alertas |

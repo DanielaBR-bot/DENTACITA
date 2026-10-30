@@ -133,7 +133,7 @@ La pantalla muestra el aviso **MODO SIMULACIÓN – entorno académico**. Cada b
 
 ### 7.3 Pruebas automatizadas
 
-Al abrir la página se ejecutan solas 26 pruebas (login, control de acceso, MFA, escenarios del simulador y casos de actividad normal). Verás:
+Al abrir la página se ejecutan solas 27 pruebas (login, control de acceso por rol, MFA, escenarios del simulador y casos de actividad normal). Verás:
 
 - **Fecha, hora y navegador** de la ejecución (útiles como evidencia).
 - **Seis métricas:** porcentaje de casos superados, tasa de detección de las reglas, falsos positivos, tiempo promedio de login, tiempo de hash SHA-256 frente a PBKDF2 y tiempo de verificación del MFA.

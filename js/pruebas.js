@@ -6,6 +6,7 @@
  *
  * Ejecuta contra el codigo REAL del proyecto:
  *   - P1-P9   : login, bloqueo, XSS y control de acceso por rol
+ *   - M6      : verificacion general del control de acceso de los 4 roles
  *   - P10-P15 : autenticacion multifactor (MFA)
  *   - E1-E4   : los 4 escenarios del simulador de incidentes
  *   - F1-F7   : casos benignos para medir falsos positivos
@@ -370,49 +371,41 @@ function definirCasos() {
             }
         },
         {
-            id: "P7", grupo: "Login", caso: "Acceso por rol: panel-logs.html",
-            esperado: "Paciente y recepcionista no pueden abrir panel-logs.html: se les redirige a citas.html y se registra ACCESO_DENEGADO",
+            id: "P7", grupo: "Login", caso: "Paciente abre panel-logs.html por URL",
+            esperado: "Con credenciales correctas, el paciente ve solo sus citas: al abrir panel-logs.html se le redirige a citas.html y se registra ACCESO_DENEGADO",
             ejecutar: async () => {
-                const partes = [];
-                let cumple = true;
-                for (const rol of ["paciente", "recepcionista"]) {
-                    await iniciarSesionCompleta(rol);
-                    const decision = evaluarAcceso(ROLES_POR_PAGINA["panel-logs.html"], "panel-logs.html");
-                    const ok = !decision.permitido && decision.destino === "citas.html";
-                    cumple = cumple && ok;
-                    partes.push(rol + " → " + (decision.permitido ? "ENTRÓ" : "redirige a " + decision.destino));
-                    cerrarSesionSilencioso();
-                }
-                const denegados = eventosPorAccion(ACCIONES.ACCESO_DENEGADO).length;
+                const { login } = await iniciarSesionCompleta("paciente");
+                const sesion = obtenerSesion();
+                const agenda = evaluarAcceso(ROLES_POR_PAGINA["citas.html"], "citas.html");
+                const registro = evaluarAcceso(ROLES_POR_PAGINA["panel-logs.html"], "panel-logs.html");
+                const denegados = eventosPorAccion(ACCIONES.ACCESO_DENEGADO)
+                    .filter((e) => e.usuario === CUENTAS_PRUEBA.paciente.correo).length;
                 return {
-                    cumple: cumple && denegados === 2,
-                    obtenido: partes.join(" · ") + " · ACCESO_DENEGADO: " + denegados
+                    cumple: login.exito && login.requiereMFA === false && sesion !== null && sesion.rol === "paciente" &&
+                        agenda.permitido && !registro.permitido && registro.destino === "citas.html" && denegados === 1,
+                    obtenido: "Sesión: " + (sesion ? sesion.rol : "ninguna") + " · citas.html: " + (agenda.permitido ? "permitido" : "denegado") +
+                        " · panel-logs.html: " + (registro.permitido ? "ENTRÓ" : "redirige a " + registro.destino) + " · ACCESO_DENEGADO: " + denegados
                 };
             }
         },
         {
-            id: "P8", grupo: "Login", caso: "Comportamiento por rol (con MFA)",
-            esperado: "Cada rol (administrador y recepcionista tras completar el MFA) abre solo sus páginas: pacientes, odontólogo y recepción → citas.html; administrador → panel-logs, simulador y pruebas",
+            id: "P8", grupo: "Login", caso: "Recepcionista (con MFA) abre panel-logs.html por URL",
+            esperado: "Con credenciales correctas y el MFA completado, la recepcionista gestiona la agenda: al abrir panel-logs.html se le redirige a citas.html y se registra ACCESO_DENEGADO",
             ejecutar: async () => {
-                const partes = [];
-                let cumple = true;
-                for (const rol of Object.keys(CUENTAS_PRUEBA)) {
-                    const { login, mfa } = await iniciarSesionCompleta(rol);
-                    const entro = obtenerSesion() !== null && obtenerSesion().rol === rol;
-                    let paginasOk = true;
-                    const abiertas = [];
-                    Object.keys(ROLES_POR_PAGINA).forEach((pagina) => {
-                        const permitido = evaluarAcceso(ROLES_POR_PAGINA[pagina], pagina).permitido;
-                        if (permitido) abiertas.push(pagina);
-                        if (permitido !== PAGINAS_PERMITIDAS_ESPERADAS[rol].includes(pagina)) paginasOk = false;
-                    });
-                    const mfaCorrecto = rolRequiereMFA(rol) ? (login.requiereMFA === true && mfa && mfa.estado === "OK") : login.requiereMFA === false;
-                    const inicioOk = paginaInicioPorRol(rol) === PAGINAS_PERMITIDAS_ESPERADAS[rol][0];
-                    cumple = cumple && entro && paginasOk && mfaCorrecto && inicioOk;
-                    partes.push(rol + (rolRequiereMFA(rol) ? " (MFA)" : "") + ": " + abiertas.join(", "));
-                    cerrarSesionSilencioso();
-                }
-                return { cumple, obtenido: partes.join(" | ") };
+                const { login, mfa } = await iniciarSesionCompleta("recepcionista");
+                const sesion = obtenerSesion();
+                const agenda = evaluarAcceso(ROLES_POR_PAGINA["citas.html"], "citas.html");
+                const registro = evaluarAcceso(ROLES_POR_PAGINA["panel-logs.html"], "panel-logs.html");
+                const denegados = eventosPorAccion(ACCIONES.ACCESO_DENEGADO)
+                    .filter((e) => e.usuario === CUENTAS_PRUEBA.recepcionista.correo).length;
+                return {
+                    cumple: login.requiereMFA === true && mfa !== null && mfa.estado === "OK" && sesion !== null &&
+                        sesion.rol === "recepcionista" && agenda.permitido && !registro.permitido &&
+                        registro.destino === "citas.html" && denegados === 1,
+                    obtenido: "MFA: " + (mfa ? mfa.estado : "no pedido") + " · sesión: " + (sesion ? sesion.rol : "ninguna") +
+                        " · citas.html: " + (agenda.permitido ? "permitido" : "denegado") + " · panel-logs.html: " +
+                        (registro.permitido ? "ENTRÓ" : "redirige a " + registro.destino) + " · ACCESO_DENEGADO: " + denegados
+                };
             }
         },
         {
@@ -549,6 +542,31 @@ function definirCasos() {
             }
         },
 
+        {
+            id: "M6", grupo: "Login", caso: "Verificación general por rol (con MFA)",
+            esperado: "Cada rol (administrador y recepcionista tras completar el MFA) abre solo sus páginas: pacientes, odontólogo y recepción → citas.html; administrador → panel-logs, simulador y pruebas",
+            ejecutar: async () => {
+                const partes = [];
+                let cumple = true;
+                for (const rol of Object.keys(CUENTAS_PRUEBA)) {
+                    const { login, mfa } = await iniciarSesionCompleta(rol);
+                    const entro = obtenerSesion() !== null && obtenerSesion().rol === rol;
+                    let paginasOk = true;
+                    const abiertas = [];
+                    Object.keys(ROLES_POR_PAGINA).forEach((pagina) => {
+                        const permitido = evaluarAcceso(ROLES_POR_PAGINA[pagina], pagina).permitido;
+                        if (permitido) abiertas.push(pagina);
+                        if (permitido !== PAGINAS_PERMITIDAS_ESPERADAS[rol].includes(pagina)) paginasOk = false;
+                    });
+                    const mfaCorrecto = rolRequiereMFA(rol) ? (login.requiereMFA === true && mfa && mfa.estado === "OK") : login.requiereMFA === false;
+                    const inicioOk = paginaInicioPorRol(rol) === PAGINAS_PERMITIDAS_ESPERADAS[rol][0];
+                    cumple = cumple && entro && paginasOk && mfaCorrecto && inicioOk;
+                    partes.push(rol + (rolRequiereMFA(rol) ? " (MFA)" : "") + ": " + abiertas.join(", "));
+                    cerrarSesionSilencioso();
+                }
+                return { cumple, obtenido: partes.join(" | ") };
+            }
+        },
         // ---------------- Escenarios del simulador (E1-E4) ----------------
         escenarioSimulador("E1", "Escenario 1: fuerza bruta", simularFuerzaBruta, "FUERZA_BRUTA", "ALTO"),
         escenarioSimulador("E2", "Escenario 2: acceso fuera de horario (23:40)", simularAccesoFueraDeHorario, "ACCESO_FUERA_HORARIO", "MEDIO"),

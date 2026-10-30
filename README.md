@@ -102,7 +102,7 @@ Como todo corre en el navegador, los datos son locales a cada navegador y **no s
 | Detección de amenazas | Cinco reglas automáticas que generan eventos `ALERTA_SEGURIDAD` | `js/logs.js` |
 | Panel de auditoría | Tarjetas resumen, alertas activas (rojo = ALTO, naranja = MEDIO), filtros por usuario, rol, acción, resultado y fechas, y exportación a `.json` | `panel-logs.html` |
 | Simulador de incidentes | Genera eventos simulados (marcados `SIMULADO`) para probar las reglas; solo administrador y con aviso visible de modo simulación | `simulador.html`, `js/simulador.js` |
-| Pruebas automatizadas | 26 casos y 6 métricas de calidad, en un entorno aislado que no altera el registro real; exporta JSON y CSV | `pruebas.html`, `js/pruebas.js` |
+| Pruebas automatizadas | 27 casos y 6 métricas de calidad, en un entorno aislado que no altera el registro real; exporta JSON y CSV | `pruebas.html`, `js/pruebas.js` |
 | Cierre de sesión | Botón en todas las páginas internas; limpia la sesión y registra `LOGOUT` | `js/auth.js` |
 
 ### Reglas de detección
@@ -144,8 +144,8 @@ El botón **Borrar eventos simulados** elimina solo los eventos marcados como si
 | P4 | Credenciales incorrectas | Correo válido con contraseña equivocada | Mensaje genérico e intento registrado en logs |
 | P5 | Bloqueo | Fallar 3 veces seguidas | Cuenta bloqueada 5 minutos (`CUENTA_BLOQUEADA`) y alerta ALTO de fuerza bruta |
 | P6 | Intento de XSS | Escribir `<script>alert(1)</script>` en el correo | Se rechaza o se escapa; no se ejecuta nada |
-| P7 | Acceso por rol | Como paciente o recepcionista (esta última tras el MFA), abrir `panel-logs.html` por URL | Redirección a la agenda y evento `ACCESO_DENEGADO` |
-| P8 | Comportamiento por rol | Entrar con cada usuario; administrador y recepcionista completan antes el MFA | Cada rol accede solo a lo que le corresponde: paciente, odontólogo y recepcionista a la agenda; administrador al registro de eventos |
+| P7 | Paciente abre el registro de eventos | Credenciales correctas de paciente y abrir `panel-logs.html` por URL | Ve solo sus citas; se le redirige a la agenda y se registra `ACCESO_DENEGADO` |
+| P8 | Recepcionista abre el registro de eventos | Credenciales correctas de recepcionista (completando el MFA) y abrir `panel-logs.html` por URL | Gestiona la agenda; se le redirige a la agenda y se registra `ACCESO_DENEGADO` |
 | P9 | Administrador abre la agenda | Credenciales correctas de administrador (y MFA) y abrir `citas.html` por URL | Acceso solo al registro de eventos; no puede abrir la agenda |
 
 ### Casos de MFA (P10–P15)
@@ -171,12 +171,14 @@ Ingresa como administrador, ejecuta cada escenario en `simulador.html` y revisa 
 | M3 | Exportar | Pulsar «Exportar registro (.json)» | Se descarga `dentacita_logs_AAAA-MM-DD.json` con todos los eventos |
 | M4 | Borrar simulados | En el simulador, «Borrar eventos simulados» | Desaparecen solo los simulados; los reales se conservan |
 | M5 | Regla en vivo | Sin simulador: fallar la contraseña 3 veces con el mismo correo en menos de 5 minutos | Alerta ALTO «Fuerza bruta» en el panel |
+| M6 | Verificación general por rol | Entrar con cada usuario (administrador y recepcionista completan antes el MFA) y probar las páginas por URL | Cada rol accede solo a lo que le corresponde: paciente, odontólogo y recepcionista a la agenda; administrador al registro de eventos, simulador y pruebas. También se ejecuta de forma automática en `pruebas.html` |
 
 ### Pruebas automatizadas (`pruebas.html`)
 
-Ingresa como administrador y abre **Pruebas automatizadas** en la barra superior. Al cargar, la página ejecuta sola 26 casos:
+Ingresa como administrador y abre **Pruebas automatizadas** en la barra superior. Al cargar, la página ejecuta sola 27 casos:
 
 - **P1–P15** (login, control de acceso y MFA),
+- **M6** (verificación general del control de acceso de los cuatro roles),
 - **E1–E4** (los cuatro escenarios del simulador) y
 - **F1–F7** (actividad legítima que **no** debe generar alertas, para medir falsos positivos).
 
