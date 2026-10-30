@@ -113,6 +113,9 @@
             });
         }
 
+        /**
+         * Borra solo los eventos simulados (previa confirmacion) y limpia la pantalla.
+         */
         function borrarSimulados() {
             if (!confirm("¿Borrar todos los eventos simulados? Los eventos reales se conservan.")) {
                 return;

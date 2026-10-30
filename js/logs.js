@@ -107,6 +107,12 @@ function guardarEventos(eventos) {
     }
 }
 
+/**
+ * Devuelve la fecha de un evento en milisegundos desde 1970.
+ *
+ * @param {{fecha_hora: string}} evento
+ * @returns {number}
+ */
 function marcaDeTiempo(evento) {
     return new Date(evento.fecha_hora).getTime();
 }
@@ -357,6 +363,23 @@ function evaluarReglasDeteccion(nuevo) {
         }
     }
 
+    // Regla 4: acceso fuera de horario (antes de 08:00 o desde las 18:00).
+    if (nuevo.accion === ACCIONES.LOGIN_EXITOSO) {
+        if (esFueraDeHorario(new Date(nuevo.fecha_hora))) {
+            alertas.push(generarAlerta(nuevo, {
+                regla: "ACCESO_FUERA_HORARIO",
+                nivel: NIVELES_ALERTA.MEDIO,
+                clave: nuevo.id, // cada ingreso fuera de horario genera su alerta
+                detalle: "Inicio de sesión de " + nuevo.usuario + " a las " +
+                    new Date(nuevo.fecha_hora).toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit" }) +
+                    ", fuera del horario de atención (08:00-18:00)",
+                usuario: nuevo.usuario,
+                rol: nuevo.rol,
+                ventana: false
+            }, todos));
+        }
+    }
+
     // Regla 5: fallos de MFA (3+ codigos MFA fallidos del mismo usuario en 5 min).
     if (nuevo.accion === ACCIONES.MFA_FALLIDO) {
         const fallosMFA = enVentana.filter((e) =>
@@ -371,23 +394,6 @@ function evaluarReglasDeteccion(nuevo) {
                 usuario: nuevo.usuario,
                 rol: nuevo.rol,
                 ventana: true
-            }, todos));
-        }
-    }
-
-    // Regla 4: acceso fuera de horario (antes de 08:00 o desde las 18:00).
-    if (nuevo.accion === ACCIONES.LOGIN_EXITOSO) {
-        if (esFueraDeHorario(new Date(nuevo.fecha_hora))) {
-            alertas.push(generarAlerta(nuevo, {
-                regla: "ACCESO_FUERA_HORARIO",
-                nivel: NIVELES_ALERTA.MEDIO,
-                clave: nuevo.id, // cada ingreso fuera de horario genera su alerta
-                detalle: "Inicio de sesión de " + nuevo.usuario + " a las " +
-                    new Date(nuevo.fecha_hora).toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit" }) +
-                    ", fuera del horario de atención (08:00-18:00)",
-                usuario: nuevo.usuario,
-                rol: nuevo.rol,
-                ventana: false
             }, todos));
         }
     }

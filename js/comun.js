@@ -63,3 +63,33 @@ function formatearFecha(fecha) {
 function fechaDeHoy() {
     return formatearFecha(new Date());
 }
+
+/**
+ * Muestra un mensaje en el elemento con id "mensaje-formulario" (login y
+ * verificacion MFA). Usa textContent: nunca innerHTML con texto dinamico.
+ *
+ * @param {string} texto Mensaje a mostrar
+ * @param {"error"|"alerta"|"exito"} tipo Estilo del mensaje
+ */
+function mostrarMensajeFormulario(texto, tipo) {
+    const mensaje = document.getElementById("mensaje-formulario");
+    mensaje.textContent = texto;
+    mensaje.className = "mensaje-formulario " + tipo;
+}
+
+/**
+ * Descarga un archivo generado en el navegador (sin servidor).
+ *
+ * @param {string} nombre Nombre del archivo, por ejemplo "registro.json"
+ * @param {string} contenido Texto del archivo
+ * @param {string} tipo Tipo MIME, por ejemplo "application/json"
+ */
+function descargarArchivo(nombre, contenido, tipo) {
+    const enlace = document.createElement("a");
+    enlace.href = URL.createObjectURL(new Blob([contenido], { type: tipo }));
+    enlace.download = nombre;
+    document.body.appendChild(enlace);
+    enlace.click();
+    document.body.removeChild(enlace);
+    URL.revokeObjectURL(enlace.href);
+}

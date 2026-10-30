@@ -153,6 +153,13 @@
         // Pintado
         // ------------------------------------------------------------
 
+        /**
+         * Crea una celda de tabla con texto seguro (textContent).
+         *
+         * @param {string} texto
+         * @param {string} [clase]
+         * @returns {HTMLTableCellElement}
+         */
         function crearCelda(texto, clase) {
             const celda = document.createElement("td");
             celda.textContent = texto; // textContent: nunca innerHTML
@@ -160,6 +167,11 @@
             return celda;
         }
 
+        /**
+         * Agrega a la tabla la fila de un caso ya ejecutado.
+         *
+         * @param {object} resultado Resultado de ejecutarCaso()
+         */
         function agregarFilaResultado(resultado) {
             const fila = document.createElement("tr");
             fila.appendChild(crearCelda(resultado.id));
@@ -171,6 +183,11 @@
             document.getElementById("cuerpo-tabla-pruebas").appendChild(fila);
         }
 
+        /**
+         * Muestra fecha, hora y navegador de la ejecucion (evidencia para el informe).
+         *
+         * @param {object} suite Resultado de ejecutarSuitePruebas()
+         */
         function pintarEntorno(suite) {
             const e = suite.entorno;
             document.getElementById("entorno-fecha").textContent = e.fecha;
@@ -205,6 +222,11 @@
             return tarjeta;
         }
 
+        /**
+         * Dibuja las tarjetas con las metricas de calidad.
+         *
+         * @param {object} m Metricas calculadas por calcularMetricas()
+         */
         function pintarMetricas(m) {
             const contenedor = document.getElementById("metricas");
             contenedor.innerHTML = "";
@@ -241,21 +263,19 @@
             return "dentacita_pruebas_" + e.fecha + "_" + e.hora.replace(/:/g, "") + "." + extension;
         }
 
-        function descargarArchivo(nombre, contenido, tipo) {
-            const enlace = document.createElement("a");
-            enlace.href = URL.createObjectURL(new Blob([contenido], { type: tipo }));
-            enlace.download = nombre;
-            document.body.appendChild(enlace);
-            enlace.click();
-            document.body.removeChild(enlace);
-            URL.revokeObjectURL(enlace.href);
-        }
+        // descargarArchivo() viene de js/comun.js
 
+        /**
+         * Descarga el resultado de la ultima ejecucion en formato JSON.
+         */
         function exportarJSON() {
             if (!ultimaSuite) return;
             descargarArchivo(nombreArchivoResultados("json"), resultadosAJSON(ultimaSuite), "application/json");
         }
 
+        /**
+         * Descarga el resultado de la ultima ejecucion en formato CSV.
+         */
         function exportarCSV() {
             if (!ultimaSuite) return;
             descargarArchivo(nombreArchivoResultados("csv"), resultadosACSV(ultimaSuite), "text/csv;charset=utf-8");

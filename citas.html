@@ -39,6 +39,11 @@
         // Utilidades de datos: citas (localStorage) y usuarios (JSON)
         // ----------------------------------------------------------------
 
+        /**
+         * Lee las citas guardadas en localStorage.
+         *
+         * @returns {object[]|null} las citas, o null si todavia no existen
+         */
         function obtenerCitas() {
             try {
                 const datos = localStorage.getItem(CLAVE_CITAS);
@@ -49,12 +54,24 @@
             }
         }
 
+        /**
+         * Guarda el arreglo completo de citas en localStorage.
+         *
+         * @param {object[]} citas
+         */
         function guardarCitas(citas) {
             localStorage.setItem(CLAVE_CITAS, JSON.stringify(citas));
         }
 
         // formatearFecha() y fechaDeHoy() vienen de js/comun.js
 
+        /**
+         * Devuelve una fecha nueva desplazada una cantidad de dias.
+         *
+         * @param {Date} fecha
+         * @param {number} dias
+         * @returns {Date}
+         */
         function sumarDias(fecha, dias) {
             const nueva = new Date(fecha);
             nueva.setDate(nueva.getDate() + dias);
@@ -112,6 +129,11 @@
             return citas;
         }
 
+        /**
+         * Genera un id numerico para una cita nueva.
+         *
+         * @returns {number}
+         */
         function generarIdCita() {
             return Date.now() + Math.floor(Math.random() * 1000);
         }
@@ -121,6 +143,12 @@
         // odontologo y la lista de pacientes) y luego se pinta la vista.
         // ----------------------------------------------------------------
 
+        /**
+         * Carga los usuarios (odontologo y pacientes), siembra las citas de ejemplo
+         * y pinta la vista que corresponde al rol de la sesion.
+         *
+         * @param {{correo: string, nombre: string, rol: string}} sesion
+         */
         async function iniciarPagina(sesion) {
             let usuarios;
             try {
@@ -151,6 +179,14 @@
         // Componentes visuales reutilizables
         // ----------------------------------------------------------------
 
+        /**
+         * Crea la tarjeta visual de una cita. Todo el texto se inserta con
+         * textContent para evitar XSS.
+         *
+         * @param {object} cita
+         * @param {HTMLElement[]} [acciones] Botones que se muestran al pie de la tarjeta
+         * @returns {HTMLElement}
+         */
         function crearTarjetaCita(cita, acciones) {
             const tarjeta = document.createElement("article");
             tarjeta.className = "tarjeta tarjeta-cita";
@@ -181,6 +217,14 @@
             return tarjeta;
         }
 
+        /**
+         * Crea un boton con texto, clase CSS y manejador de clic.
+         *
+         * @param {string} texto
+         * @param {string} clase
+         * @param {function} alHacerClic
+         * @returns {HTMLButtonElement}
+         */
         function crearBoton(texto, clase, alHacerClic) {
             const boton = document.createElement("button");
             boton.type = "button";
@@ -190,6 +234,12 @@
             return boton;
         }
 
+        /**
+         * Marca una cita como cancelada y registra CITA_CANCELADA.
+         *
+         * @param {number} id Id de la cita
+         * @param {{correo: string, rol: string}} sesion Quien cancela
+         */
         function cancelarCita(id, sesion) {
             const citas = obtenerCitas() || [];
             const cita = citas.find((c) => c.id === id);
@@ -206,6 +256,12 @@
         // Vista: PACIENTE (solo sus propias citas)
         // ----------------------------------------------------------------
 
+        /**
+         * Vista del paciente: solo sus propias citas y el formulario para solicitar una.
+         *
+         * @param {{correo: string, nombre: string, rol: string}} sesion
+         * @param {object} odontologo Usuario odontologo asignado a las citas nuevas
+         */
         function pintarVistaPaciente(sesion, odontologo) {
             contenedorPrincipal.innerHTML = "";
 
@@ -301,6 +357,11 @@
         // Vista: ODONTOLOGO (solo su agenda del dia, solo lectura)
         // ----------------------------------------------------------------
 
+        /**
+         * Vista del odontologo: unicamente su agenda del dia actual.
+         *
+         * @param {{correo: string, nombre: string, rol: string}} sesion
+         */
         function pintarVistaOdontologo(sesion) {
             contenedorPrincipal.innerHTML = "";
 
@@ -333,6 +394,12 @@
         // Vista: RECEPCIONISTA (ve y gestiona todas las citas)
         // ----------------------------------------------------------------
 
+        /**
+         * Vista de la recepcionista: todas las citas, con crear, reprogramar y cancelar.
+         *
+         * @param {object[]} pacientes Usuarios con rol paciente
+         * @param {object} odontologo Usuario odontologo
+         */
         function pintarVistaRecepcionista(pacientes, odontologo) {
             contenedorPrincipal.innerHTML = "";
 

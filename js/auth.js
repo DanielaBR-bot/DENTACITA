@@ -146,6 +146,11 @@ async function cargarUsuarios() {
 // Control de bloqueo por intentos fallidos
 // ----------------------------------------------------------------
 
+/**
+ * Lee de localStorage el mapa de intentos fallidos y bloqueos por correo.
+ *
+ * @returns {Object<string, {intentos: number, bloqueadoHasta: number|null}>}
+ */
 function obtenerMapaBloqueos() {
     try {
         const datos = localStorage.getItem(CLAVE_BLOQUEOS);
@@ -155,6 +160,11 @@ function obtenerMapaBloqueos() {
     }
 }
 
+/**
+ * Guarda en localStorage el mapa completo de bloqueos.
+ *
+ * @param {object} mapa
+ */
 function guardarMapaBloqueos(mapa) {
     localStorage.setItem(CLAVE_BLOQUEOS, JSON.stringify(mapa));
 }
@@ -168,6 +178,12 @@ function obtenerEstadoBloqueo(correo) {
     return mapa[correo] || { intentos: 0, bloqueadoHasta: null };
 }
 
+/**
+ * Actualiza el estado de intentos/bloqueo de un correo.
+ *
+ * @param {string} correo
+ * @param {{intentos: number, bloqueadoHasta: number|null}} estado
+ */
 function guardarEstadoBloqueo(correo, estado) {
     const mapa = obtenerMapaBloqueos();
     mapa[correo] = estado;

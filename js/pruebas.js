@@ -214,14 +214,31 @@ function codigoIncorrecto(codigoReal) {
     return codigoReal === "000000" ? "111111" : "000000";
 }
 
+/**
+ * Eventos del registro con una accion concreta.
+ *
+ * @param {string} accion Una constante de ACCIONES
+ * @returns {object[]}
+ */
 function eventosPorAccion(accion) {
     return obtenerEventos().filter((e) => e.accion === accion);
 }
 
+/**
+ * Alertas activas generadas por una regla de deteccion.
+ *
+ * @param {string} regla Clave de REGLAS_DETECCION, por ejemplo "FUERZA_BRUTA"
+ * @returns {object[]}
+ */
 function alertasDeRegla(regla) {
     return obtenerAlertasActivas().filter((a) => a.regla === regla);
 }
 
+/**
+ * Cantidad total de alertas generadas (revisadas o no).
+ *
+ * @returns {number}
+ */
 function totalAlertas() {
     return eventosPorAccion(ACCIONES.ALERTA_SEGURIDAD).length;
 }
@@ -233,6 +250,12 @@ function hoyA(hora, minuto, segundo) {
     return fecha.toISOString();
 }
 
+/**
+ * Texto «sí» / «NO» para describir un resultado booleano.
+ *
+ * @param {boolean} condicion
+ * @returns {string}
+ */
 function mensajeSiNo(condicion) {
     return condicion ? "sí" : "NO";
 }
@@ -642,10 +665,23 @@ async function ejecutarCaso(caso) {
 // Metricas de calidad
 // ----------------------------------------------------------------
 
+/**
+ * Promedio aritmetico de una lista de numeros.
+ *
+ * @param {number[]} valores
+ * @returns {number}
+ */
 function promedio(valores) {
     return valores.reduce((suma, v) => suma + v, 0) / valores.length;
 }
 
+/**
+ * Redondea un numero a una cantidad de decimales.
+ *
+ * @param {number} valor
+ * @param {number} decimales
+ * @returns {number}
+ */
 function redondear(valor, decimales) {
     const f = Math.pow(10, decimales);
     return Math.round(valor * f) / f;

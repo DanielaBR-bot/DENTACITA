@@ -58,11 +58,9 @@
         const mensajeFormulario = document.getElementById("mensaje-formulario");
         const botonIngresar = document.getElementById("boton-ingresar");
 
-        function mostrarMensajeFormulario(texto, tipo) {
-            mensajeFormulario.textContent = texto; // textContent: nunca innerHTML con datos de usuario
-            mensajeFormulario.className = "mensaje-formulario " + tipo;
-        }
+        // mostrarMensajeFormulario() viene de js/comun.js
 
+        /** Borra los errores de los campos y el mensaje general del formulario. */
         function limpiarMensajes() {
             errorCorreo.textContent = "";
             errorContrasena.textContent = "";

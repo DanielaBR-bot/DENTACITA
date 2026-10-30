@@ -160,6 +160,11 @@
             });
         }
 
+        /**
+         * Lee los valores actuales de los filtros del panel.
+         *
+         * @returns {{usuario: string, rol: string, accion: string, resultado: string, desde: string, hasta: string}}
+         */
         function leerFiltros() {
             return {
                 usuario: document.getElementById("filtro-usuario").value,
@@ -171,6 +176,9 @@
             };
         }
 
+        /**
+         * Conecta los filtros, el boton «Limpiar filtros» y la exportacion.
+         */
         function enlazarEventos() {
             // Cada cambio en un filtro vuelve a pintar la tabla.
             document.getElementById("form-filtros")
@@ -195,6 +203,9 @@
             pintarTablaEventos();
         }
 
+        /**
+         * Actualiza las tarjetas de resumen (totales y alertas activas).
+         */
         function pintarResumen() {
             const resumen = calcularResumen(obtenerEventos());
             document.getElementById("cifra-total").textContent = resumen.total;
@@ -204,6 +215,9 @@
             document.getElementById("cifra-alertas").textContent = resumen.alertasActivas;
         }
 
+        /**
+         * Dibuja la lista de alertas activas con su boton «Marcar como revisada».
+         */
         function pintarAlertasActivas() {
             const lista = document.getElementById("lista-alertas");
             const mensajeVacio = document.getElementById("mensaje-sin-alertas");
@@ -217,11 +231,20 @@
             });
         }
 
+        /**
+         * Marca una alerta como revisada y vuelve a pintar el panel.
+         *
+         * @param {string} idAlerta
+         */
         function revisarAlerta(idAlerta) {
             marcarAlertaRevisada(idAlerta, sesion);
             refrescarPanel();
         }
 
+        /**
+         * Dibuja la tabla de eventos aplicando los filtros (mas reciente primero).
+         * Valida que el rango de fechas sea coherente.
+         */
         function pintarTablaEventos() {
             const todos = obtenerEventos();
             const filtros = leerFiltros();
@@ -300,18 +323,11 @@
         function exportarRegistro() {
             // Se exporta primero el contenido y despues se deja constancia
             // de la exportacion, para no alterar el archivo descargado.
-            const contenido = exportarEventosComoJSON();
-            const enlace = document.createElement("a");
-            const archivo = new Blob([contenido], { type: "application/json" });
-            enlace.href = URL.createObjectURL(archivo);
-            enlace.download = "dentacita_logs_" + fechaDeHoy() + ".json";
-            document.body.appendChild(enlace);
-            enlace.click();
-            document.body.removeChild(enlace);
-            URL.revokeObjectURL(enlace.href);
+            const nombreArchivo = "dentacita_logs_" + fechaDeHoy() + ".json";
+            descargarArchivo(nombreArchivo, exportarEventosComoJSON(), "application/json");
 
             registrarEvento(sesion.correo, sesion.rol, ACCIONES.LOG_EXPORTADO,
-                "EXITO", "Exportación del registro completo (" + enlace.download + ")");
+                "EXITO", "Exportación del registro completo (" + nombreArchivo + ")");
             refrescarPanel();
         }
     </script>
