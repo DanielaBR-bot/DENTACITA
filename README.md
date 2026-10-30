@@ -20,7 +20,7 @@ Prototipo académico de agendamiento de citas para el consultorio ficticio **"Co
 
 ## Usuarios de prueba
 
-Solo para el prototipo. En `data/usuarios.json` las contraseñas están guardadas únicamente como hash SHA-256.
+Solo para el prototipo. En `data/usuarios.json` las contraseñas están guardadas únicamente como hash PBKDF2-SHA256 con sal única por usuario y 150 000 iteraciones.
 
 | Rol | Correo | Contraseña |
 |---|---|---|
@@ -62,7 +62,7 @@ Como todo corre en el navegador, los datos son locales a cada navegador y **no s
 
 | Control | Descripción | Dónde |
 |---|---|---|
-| Hash de contraseñas | Nunca se guardan ni comparan en texto plano; SHA-256 con Web Crypto API | `js/auth.js` |
+| Hash de contraseñas | Nunca se guardan ni comparan en texto plano; PBKDF2-SHA256 con sal única por usuario y 150 000 iteraciones (Web Crypto API); comparación en tiempo constante | `js/auth.js` |
 | Validación de entrada | Correo con formato válido, máx. 60 caracteres; contraseña de 8-64 caracteres con mayúscula, minúscula y número | `js/validacion.js` |
 | Anti-XSS | Se recortan espacios y se escapan `< > " ' &`; los datos de usuario se muestran con `textContent`, nunca con `innerHTML` | `js/validacion.js`, páginas |
 | Mensajes genéricos | "Usuario o contraseña incorrectos", sin revelar si el correo existe | `js/auth.js` |
@@ -159,7 +159,7 @@ dentacita/
 ## Limitaciones
 
 - Es un prototipo educativo: **la seguridad del lado del cliente no reemplaza a un backend**. Cualquiera con acceso al navegador puede modificar `localStorage`, saltarse validaciones o leer el JSON de usuarios.
-- SHA-256 sin sal es adecuado para la demostración, pero en producción se usaría un algoritmo lento con sal (bcrypt, Argon2) en el servidor.
+- PBKDF2 es adecuado para la demostración, pero el `usuarios.json` es público y el cálculo ocurre en el navegador. En producción el hash se verificaría en el servidor (idealmente con Argon2 o bcrypt) y la sal y el hash nunca se expondrían al cliente.
 - El bloqueo por intentos se puede evadir borrando el almacenamiento del navegador.
 
 - El registro "solo agregar" es una garantía de la interfaz: quien controle el navegador puede editar `localStorage` directamente. Un registro realmente inmutable requeriría almacenamiento en un servidor.

@@ -19,22 +19,104 @@ const CLAVE_BLOQUEOS = "dentacita_bloqueos";
 const MAX_INTENTOS = 3;
 const MINUTOS_BLOQUEO = 5;
 
-// Hash "senuelo" usado cuando el correo no existe, para que el
-// tiempo de respuesta sea similar al de un usuario real y no se
-// pueda deducir por temporizacion si un correo esta registrado.
-const HASH_SENUELO =
-    "0".repeat(64);
+// ----------------------------------------------------------------
+// Almacenamiento de contrasenas: PBKDF2-SHA256 con sal por usuario
+// ----------------------------------------------------------------
+
+const ALGORITMO_HASH = "PBKDF2-SHA256";
+const ITERACIONES_PBKDF2 = 150000;       // iteraciones usadas para nuevos hashes y para el senuelo
+const ITERACIONES_MINIMAS = 100000;      // un usuario con menos iteraciones se rechaza
+const BITS_HASH = 256;                   // longitud del hash derivado (32 bytes)
+
+// Sal "senuelo" usada cuando el correo no existe: se deriva igual que para
+// un usuario real, asi el tiempo de respuesta no delata si el correo esta
+// registrado (mitigacion de ataques de temporizacion).
+const SAL_SENUELO = "00".repeat(16);
 
 /**
- * Calcula el hash SHA-256 de un texto usando la Web Crypto API
- * y lo devuelve como cadena hexadecimal en minusculas.
+ * Convierte bytes a una cadena hexadecimal en minusculas.
+ *
+ * @param {Uint8Array|number[]} bytes
+ * @returns {string}
+ */
+function bytesAHex(bytes) {
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Convierte una cadena hexadecimal en bytes.
+ *
+ * @param {string} hex Cadena de longitud par (por ejemplo, la sal de usuarios.json)
+ * @returns {Uint8Array}
+ */
+function hexABytes(hex) {
+    const pares = hex.match(/.{2}/g) || [];
+    return new Uint8Array(pares.map((par) => parseInt(par, 16)));
+}
+
+/**
+ * Deriva un hash con PBKDF2-SHA256 usando la Web Crypto API.
+ *
+ * @param {string} contrasena Contrasena en texto plano (nunca se guarda)
+ * @param {string} salHex Sal unica del usuario, en hexadecimal
+ * @param {number} iteraciones Cantidad de iteraciones de PBKDF2
+ * @returns {Promise<string>} hash derivado en hexadecimal
+ */
+async function derivarHashPBKDF2(contrasena, salHex, iteraciones) {
+    const material = await crypto.subtle.importKey(
+        "raw", new TextEncoder().encode(contrasena), "PBKDF2", false, ["deriveBits"]);
+    const bits = await crypto.subtle.deriveBits(
+        { name: "PBKDF2", hash: "SHA-256", salt: hexABytes(salHex), iterations: iteraciones },
+        material, BITS_HASH);
+    return bytesAHex(new Uint8Array(bits));
+}
+
+/**
+ * Calcula el hash SHA-256 simple de un texto (sin sal ni iteraciones).
+ * Ya NO se usa para contrasenas; se conserva solo para que pruebas.html
+ * pueda comparar su tiempo con el de PBKDF2.
+ *
+ * @param {string} texto
+ * @returns {Promise<string>} hash en hexadecimal
  */
 async function calcularHashSHA256(texto) {
-    const codificador = new TextEncoder();
-    const datos = codificador.encode(texto);
-    const bufferHash = await crypto.subtle.digest("SHA-256", datos);
-    const bytes = Array.from(new Uint8Array(bufferHash));
-    return bytes.map((b) => b.toString(16).padStart(2, "0")).join("");
+    const bufferHash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texto));
+    return bytesAHex(new Uint8Array(bufferHash));
+}
+
+/**
+ * Compara dos cadenas recorriendo siempre toda la longitud, para que el
+ * tiempo de comparacion no revele en que posicion difieren.
+ *
+ * @param {string} a
+ * @param {string} b
+ * @returns {boolean}
+ */
+function compararSeguro(a, b) {
+    if (a.length !== b.length) return false;
+    let diferencia = 0;
+    for (let i = 0; i < a.length; i++) {
+        diferencia |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    return diferencia === 0;
+}
+
+/**
+ * Verifica una contrasena contra el registro de un usuario. Si el usuario
+ * no existe (null) se deriva igualmente con la sal senuelo y se devuelve
+ * false, para que el tiempo de respuesta sea el mismo.
+ *
+ * @param {string} contrasena
+ * @param {object|null} usuario Registro de data/usuarios.json o null
+ * @returns {Promise<boolean>}
+ */
+async function verificarContrasena(contrasena, usuario) {
+    if (!usuario || usuario.algoritmo !== ALGORITMO_HASH || usuario.iteraciones < ITERACIONES_MINIMAS) {
+        await derivarHashPBKDF2(contrasena, SAL_SENUELO, ITERACIONES_PBKDF2);
+        return false;
+    }
+    const hash = await derivarHashPBKDF2(contrasena, usuario.sal, usuario.iteraciones);
+    return compararSeguro(hash, usuario.hashContrasena);
 }
 
 /**
@@ -125,12 +207,10 @@ async function iniciarSesion(correoIngresado, contrasenaIngresada) {
         (u) => u.correo.toLowerCase() === correo
     );
 
-    // 3. Calcular el hash de la contrasena ingresada. Esto se hace
-    //    siempre, exista o no el usuario, para no dar pistas por
-    //    diferencias de tiempo de respuesta.
-    const hashIngresado = await calcularHashSHA256(contrasena);
-    const hashEsperado = usuario ? usuario.hashContrasena : HASH_SENUELO;
-    const coincide = usuario && hashIngresado === hashEsperado;
+    // 3. Derivar el hash PBKDF2 de la contrasena ingresada. Se hace siempre,
+    //    exista o no el usuario, para no dar pistas por diferencias de
+    //    tiempo de respuesta.
+    const coincide = await verificarContrasena(contrasena, usuario || null);
 
     if (coincide) {
         // Login correcto: reiniciar contador de intentos.
