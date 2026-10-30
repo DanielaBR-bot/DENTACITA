@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DentaCita - Pruebas automatizadas</title>
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+    <header class="barra-superior">
+        <h1>🦷 DentaCita · Pruebas automatizadas</h1>
+        <div id="barra-sesion"></div>
+    </header>
+
+    <main class="contenedor ancho">
+
+        <div class="encabezado-seccion">
+            <h2>Resultados de la ejecución</h2>
+            <div class="acciones-panel">
+                <button type="button" class="boton-chico" id="boton-ejecutar">Volver a ejecutar</button>
+                <button type="button" class="boton-chico" id="boton-json" disabled>Exportar JSON</button>
+                <button type="button" class="boton-chico" id="boton-csv" disabled>Exportar CSV</button>
+            </div>
+        </div>
+
+        <div class="mensaje-formulario alerta" id="aviso-aislamiento">
+            Las pruebas se ejecutan en un entorno aislado: antes de empezar se respalda el registro de
+            eventos, los bloqueos y la sesión actuales, y al terminar se restauran tal como estaban.
+            Los eventos de prueba no quedan en el registro real; solo se agrega un evento
+            <strong>PRUEBAS_EJECUTADAS</strong> con el resumen.
+        </div>
+
+        <!-- Evidencia de la ejecucion: fecha, hora y navegador -->
+        <section class="tarjeta ficha-entorno" id="ficha-entorno">
+            <dl>
+                <dt>Fecha</dt><dd id="entorno-fecha">—</dd>
+                <dt>Hora</dt><dd id="entorno-hora">—</dd>
+                <dt>Navegador</dt><dd id="entorno-navegador">—</dd>
+                <dt>Plataforma</dt><dd id="entorno-plataforma">—</dd>
+                <dt>Zona horaria</dt><dd id="entorno-zona">—</dd>
+                <dt>URL</dt><dd id="entorno-url">—</dd>
+                <dt>Duración total</dt><dd id="entorno-duracion">—</dd>
+            </dl>
+        </section>
+
+        <p class="contador-filtro" id="estado-ejecucion">Preparando pruebas...</p>
+
+        <!-- Metricas de calidad -->
+        <section class="rejilla-metricas" id="metricas"></section>
+
+        <!-- Tabla de resultados -->
+        <section class="seccion-panel">
+            <h3>Casos de prueba</h3>
+            <div class="tabla-scroll">
+                <table class="tabla-datos" id="tabla-pruebas">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Caso</th>
+                            <th>Resultado esperado</th>
+                            <th>Resultado obtenido</th>
+                            <th>Veredicto</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpo-tabla-pruebas"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Orden de carga: comun, validacion y logs primero (auth.js y mfa.js dependen de ellos) -->
+    <script src="js/comun.js"></script>
+    <script src="js/validacion.js"></script>
+    <script src="js/logs.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/mfa.js"></script>
+    <script src="js/simulador.js"></script>
+    <script src="js/pruebas.js"></script>
+    <script>
+        // Si una ejecucion anterior se interrumpio (pestana cerrada a mitad de las
+        // pruebas), primero se recuperan el registro y los bloqueos reales (queda
+        // un evento en el registro). La sesion no se recupera: hay que iniciar
+        // sesion de nuevo. Debe hacerse ANTES de verificar la sesion.
+        recuperarRespaldoPruebas();
+
+        // Solo el administrador puede ver esta pagina.
+        const sesion = verificarAcceso(ROLES_POR_PAGINA["pruebas.html"]);
+
+        let ultimaSuite = null;
+        let ejecutandoSuite = false;
+
+        if (sesion) {
+            pintarBarraSesion(sesion);
+            agregarEnlaceBarra("Registro de eventos", "panel-logs.html");
+            agregarEnlaceBarra("Simulador de incidentes", "simulador.html");
+
+            document.getElementById("boton-ejecutar").addEventListener("click", ejecutarPruebas);
+            document.getElementById("boton-json").addEventListener("click", exportarJSON);
+            document.getElementById("boton-csv").addEventListener("click", exportarCSV);
+
+            // Las pruebas se ejecutan automaticamente al abrir la pagina.
+            ejecutarPruebas();
+        }
+
+        /** Corre la suite, actualiza la pantalla y deja constancia en el registro real. */
+        async function ejecutarPruebas() {
+            if (ejecutandoSuite) return;
+            ejecutandoSuite = true;
+
+            const botonEjecutar = document.getElementById("boton-ejecutar");
+            botonEjecutar.disabled = true;
+            document.getElementById("boton-json").disabled = true;
+            document.getElementById("boton-csv").disabled = true;
+            document.getElementById("cuerpo-tabla-pruebas").innerHTML = "";
+            document.getElementById("metricas").innerHTML = "";
+
+            const estado = document.getElementById("estado-ejecucion");
+            estado.textContent = "Ejecutando pruebas...";
+
+            try {
+                const suite = await ejecutarSuitePruebas(function (hechos, total, resultado) {
+                    estado.textContent = "Ejecutando pruebas... " + hechos + " de " + total;
+                    agregarFilaResultado(resultado);
+                });
+                ultimaSuite = suite;
+
+                pintarEntorno(suite);
+                pintarMetricas(suite.metricas);
+
+                const m = suite.metricas;
+                estado.textContent = m.casosSuperados + " de " + m.casosTotales + " casos CUMPLEN (" +
+                    m.porcentajeSuperados + " %).";
+
+                // Constancia en el registro REAL (ya restaurado) de que se ejecutaron las pruebas.
+                registrarEvento(sesion.correo, sesion.rol, ACCIONES.PRUEBAS_EJECUTADAS,
+                    m.casosSuperados === m.casosTotales ? "EXITO" : "ALERTA",
+                    "Pruebas automatizadas: " + m.casosSuperados + " de " + m.casosTotales +
+                    " casos cumplen (" + m.porcentajeSuperados + " %)");
+
+                document.getElementById("boton-json").disabled = false;
+                document.getElementById("boton-csv").disabled = false;
+            } catch (error) {
+                console.error(error);
+                estado.textContent = "No se pudieron ejecutar las pruebas: " + error.message;
+            } finally {
+                ejecutandoSuite = false;
+                botonEjecutar.disabled = false;
+            }
+        }
+
+        // ------------------------------------------------------------
+        // Pintado
+        // ------------------------------------------------------------
+
+        function crearCelda(texto, clase) {
+            const celda = document.createElement("td");
+            celda.textContent = texto; // textContent: nunca innerHTML
+            if (clase) celda.className = clase;
+            return celda;
+        }
+
+        function agregarFilaResultado(resultado) {
+            const fila = document.createElement("tr");
+            fila.appendChild(crearCelda(resultado.id));
+            fila.appendChild(crearCelda(resultado.caso));
+            fila.appendChild(crearCelda(resultado.esperado, "celda-pequena"));
+            fila.appendChild(crearCelda(resultado.obtenido, "celda-pequena"));
+            fila.appendChild(crearCelda(resultado.cumple ? "CUMPLE" : "NO CUMPLE",
+                resultado.cumple ? "cumple" : "no-cumple"));
+            document.getElementById("cuerpo-tabla-pruebas").appendChild(fila);
+        }
+
+        function pintarEntorno(suite) {
+            const e = suite.entorno;
+            document.getElementById("entorno-fecha").textContent = e.fecha;
+            document.getElementById("entorno-hora").textContent = e.hora;
+            document.getElementById("entorno-navegador").textContent = e.navegador + " — " + e.userAgent;
+            document.getElementById("entorno-plataforma").textContent = e.plataforma || "(no informada)";
+            document.getElementById("entorno-zona").textContent = e.zonaHoraria;
+            document.getElementById("entorno-url").textContent = e.url;
+            document.getElementById("entorno-duracion").textContent = suite.duracionTotalMs + " ms";
+        }
+
+        /** Crea una tarjeta de metrica con cifra principal, rotulo y detalle. */
+        function crearTarjetaMetrica(rotulo, cifra, detalle) {
+            const tarjeta = document.createElement("div");
+            tarjeta.className = "tarjeta tarjeta-metrica";
+
+            const spanCifra = document.createElement("span");
+            spanCifra.className = "cifra";
+            spanCifra.textContent = cifra;
+
+            const spanRotulo = document.createElement("span");
+            spanRotulo.className = "rotulo";
+            spanRotulo.textContent = rotulo;
+
+            const spanDetalle = document.createElement("span");
+            spanDetalle.className = "detalle";
+            spanDetalle.textContent = detalle;
+
+            tarjeta.appendChild(spanCifra);
+            tarjeta.appendChild(spanRotulo);
+            tarjeta.appendChild(spanDetalle);
+            return tarjeta;
+        }
+
+        function pintarMetricas(m) {
+            const contenedor = document.getElementById("metricas");
+            contenedor.innerHTML = "";
+
+            contenedor.appendChild(crearTarjetaMetrica("Casos superados",
+                m.porcentajeSuperados + " %", m.casosSuperados + " de " + m.casosTotales + " casos"));
+            contenedor.appendChild(crearTarjetaMetrica("Tasa de detección de las reglas",
+                m.deteccion.tasaPorcentaje + " %",
+                m.deteccion.detectadas + " de " + m.deteccion.esperadas + " alertas esperadas (" + m.deteccion.casos.join(", ") + ")"));
+            contenedor.appendChild(crearTarjetaMetrica("Falsos positivos",
+                String(m.falsosPositivos.casosConFalsoPositivo),
+                m.falsosPositivos.alertasGeneradas + " alertas en " + m.falsosPositivos.casosBenignos +
+                " casos benignos (" + m.falsosPositivos.tasaPorcentaje + " %)"));
+            contenedor.appendChild(crearTarjetaMetrica("Tiempo promedio de login",
+                m.tiempoLogin.promedioMs + " ms",
+                "mín " + m.tiempoLogin.minimoMs + " · máx " + m.tiempoLogin.maximoMs + " ms · " +
+                m.tiempoLogin.repeticiones + " logins (incluye PBKDF2)"));
+            contenedor.appendChild(crearTarjetaMetrica("Hash: SHA-256 frente a PBKDF2",
+                m.tiempoHash.sha256Ms + " ms / " + m.tiempoHash.pbkdf2Ms + " ms",
+                "PBKDF2 con " + m.tiempoHash.iteracionesPBKDF2 + " iteraciones es " +
+                m.tiempoHash.vecesMasLento + " veces más lento"));
+            contenedor.appendChild(crearTarjetaMetrica("Tiempo de verificación del MFA",
+                m.tiempoVerificacionMFA.promedioMs + " ms",
+                "máx " + m.tiempoVerificacionMFA.maximoMs + " ms · " + m.tiempoVerificacionMFA.repeticiones + " verificaciones"));
+        }
+
+        // ------------------------------------------------------------
+        // Exportacion
+        // ------------------------------------------------------------
+
+        /** Nombre base del archivo con la fecha y hora de la ejecucion. */
+        function nombreArchivoResultados(extension) {
+            const e = ultimaSuite.entorno;
+            return "dentacita_pruebas_" + e.fecha + "_" + e.hora.replace(/:/g, "") + "." + extension;
+        }
+
+        function descargarArchivo(nombre, contenido, tipo) {
+            const enlace = document.createElement("a");
+            enlace.href = URL.createObjectURL(new Blob([contenido], { type: tipo }));
+            enlace.download = nombre;
+            document.body.appendChild(enlace);
+            enlace.click();
+            document.body.removeChild(enlace);
+            URL.revokeObjectURL(enlace.href);
+        }
+
+        function exportarJSON() {
+            if (!ultimaSuite) return;
+            descargarArchivo(nombreArchivoResultados("json"), resultadosAJSON(ultimaSuite), "application/json");
+        }
+
+        function exportarCSV() {
+            if (!ultimaSuite) return;
+            descargarArchivo(nombreArchivoResultados("csv"), resultadosACSV(ultimaSuite), "text/csv;charset=utf-8");
+        }
+    </script>
+</body>
+</html>

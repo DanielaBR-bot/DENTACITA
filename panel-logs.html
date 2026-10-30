@@ -126,11 +126,12 @@
     <script src="js/auth.js"></script>
     <script>
         // Solo el administrador puede ver esta pagina.
-        const sesion = verificarAcceso(["administrador"]);
+        const sesion = verificarAcceso(ROLES_POR_PAGINA["panel-logs.html"]);
 
         if (sesion) {
             pintarBarraSesion(sesion);
             agregarEnlaceBarra("Simulador de incidentes", "simulador.html");
+            agregarEnlaceBarra("Pruebas automatizadas", "pruebas.html");
             llenarListasDeFiltros();
             enlazarEventos();
             refrescarPanel();

@@ -19,6 +19,16 @@ const CLAVE_BLOQUEOS = "dentacita_bloqueos";
 const MAX_INTENTOS = 3;
 const MINUTOS_BLOQUEO = 5;
 
+// Roles que pueden abrir cada pagina protegida. Cada pagina llama a
+// verificarAcceso(ROLES_POR_PAGINA["nombre.html"]) y pruebas.html usa esta
+// misma tabla para comprobar el control de acceso real.
+const ROLES_POR_PAGINA = {
+    "citas.html": ["paciente", "recepcionista", "odontologo"],
+    "panel-logs.html": ["administrador"],
+    "simulador.html": ["administrador"],
+    "pruebas.html": ["administrador"]
+};
+
 // ----------------------------------------------------------------
 // Almacenamiento de contrasenas: PBKDF2-SHA256 con sal por usuario
 // ----------------------------------------------------------------

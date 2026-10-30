@@ -26,7 +26,7 @@
         const CLAVE_CITAS = "dentacita_citas";
 
         // La pagina es valida para los 3 roles; el contenido cambia segun cual sea.
-        const sesion = verificarAcceso(["paciente", "recepcionista", "odontologo"]);
+        const sesion = verificarAcceso(ROLES_POR_PAGINA["citas.html"]);
 
         const contenedorPrincipal = document.getElementById("contenedor-principal");
 

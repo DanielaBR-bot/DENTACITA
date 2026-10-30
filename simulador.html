@@ -69,11 +69,12 @@
     <script>
         // Solo el administrador puede ver esta pagina. Cualquier otro rol
         // que llegue aqui queda registrado como ACCESO_DENEGADO.
-        const sesion = verificarAcceso(["administrador"]);
+        const sesion = verificarAcceso(ROLES_POR_PAGINA["simulador.html"]);
 
         if (sesion) {
             pintarBarraSesion(sesion);
             agregarEnlaceBarra("Registro de eventos", "panel-logs.html");
+            agregarEnlaceBarra("Pruebas automatizadas", "pruebas.html");
 
             document.getElementById("boton-esc1").addEventListener("click", () => ejecutar(simularFuerzaBruta, "Escenario 1 · Fuerza bruta"));
             document.getElementById("boton-esc2").addEventListener("click", () => ejecutar(simularAccesoFueraDeHorario, "Escenario 2 · Fuera de horario"));
