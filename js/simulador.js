@@ -12,7 +12,7 @@
  * Los escenarios NO tocan cuentas ni bloqueos reales: no modifican
  * dentacita_bloqueos ni la sesion de nadie. Solo escriben en el registro.
  *
- * Depende de: js/logs.js (registrarEvento, generarId, ACCIONES, ...)
+ * Depende de: js/comun.js (generarId) y js/logs.js (registrarEvento, ACCIONES, ...)
  * -----------------------------------------------------------
  */
 

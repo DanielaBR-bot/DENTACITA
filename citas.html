@@ -17,7 +17,8 @@
         <p class="vacio">Cargando agenda...</p>
     </main>
 
-    <!-- Orden de carga: validacion y logs primero (auth.js depende de ambos) -->
+    <!-- Orden de carga: comun, validacion y logs primero (auth.js depende de ellos) -->
+    <script src="js/comun.js"></script>
     <script src="js/validacion.js"></script>
     <script src="js/logs.js"></script>
     <script src="js/auth.js"></script>
@@ -52,16 +53,7 @@
             localStorage.setItem(CLAVE_CITAS, JSON.stringify(citas));
         }
 
-        function formatearFecha(fecha) {
-            const dd = String(fecha.getDate()).padStart(2, "0");
-            const mm = String(fecha.getMonth() + 1).padStart(2, "0");
-            const yyyy = fecha.getFullYear();
-            return yyyy + "-" + mm + "-" + dd;
-        }
-
-        function fechaDeHoy() {
-            return formatearFecha(new Date());
-        }
+        // formatearFecha() y fechaDeHoy() vienen de js/comun.js
 
         function sumarDias(fecha, dias) {
             const nueva = new Date(fecha);

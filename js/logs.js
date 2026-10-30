@@ -21,11 +21,8 @@
  * -----------------------------------------------------------
  */
 
+// Depende de js/comun.js (CLAVE_SESION, generarId, esFueraDeHorario).
 const CLAVE_LOGS = "dentacita_logs";
-
-// Clave de la sesion activa (la misma que define auth.js). Se repite aqui
-// con otro nombre porque logs.js se carga antes que auth.js.
-const CLAVE_SESION_PARA_LOGS = "dentacita_sesion";
 
 // Catalogo de acciones reconocidas por el sistema.
 const ACCIONES = {
@@ -66,32 +63,20 @@ const VENTANA_DETECCION_MS = 5 * 60 * 1000; // 5 minutos
 const UMBRAL_FUERZA_BRUTA = 3;              // intentos fallidos del mismo correo
 const UMBRAL_ENUMERACION = 3;               // correos distintos con intentos fallidos
 const UMBRAL_ESCALAMIENTO = 2;              // accesos denegados en la misma sesion
-const LOGS_HORA_APERTURA = 8;               // 08:00
-const LOGS_HORA_CIERRE = 18;                // 18:00
 
 // ----------------------------------------------------------------
 // Utilidades
 // ----------------------------------------------------------------
 
 /**
- * Genera un identificador unico con un prefijo, por ejemplo
- * "EVT-lq3k9x2a-1f9c0a7d3b21". Combina la marca de tiempo con bytes
- * aleatorios criptograficos.
- */
-function generarId(prefijo) {
-    const bytes = new Uint8Array(6);
-    crypto.getRandomValues(bytes);
-    const aleatorio = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-    return prefijo + "-" + Date.now().toString(36) + "-" + aleatorio;
-}
-
-/**
  * Devuelve el id de la sesion activa (lo asigna auth.js al iniciar
  * sesion) o null si no hay sesion. Sirve para agrupar eventos por sesion.
+ *
+ * @returns {string|null}
  */
 function obtenerIdSesionActual() {
     try {
-        const datos = sessionStorage.getItem(CLAVE_SESION_PARA_LOGS);
+        const datos = sessionStorage.getItem(CLAVE_SESION);
         const sesion = datos ? JSON.parse(datos) : null;
         return sesion && sesion.id ? sesion.id : null;
     } catch (error) {
@@ -99,6 +84,12 @@ function obtenerIdSesionActual() {
     }
 }
 
+/**
+ * Guarda el arreglo completo de eventos en localStorage. Si falla
+ * (por ejemplo, almacenamiento lleno) no interrumpe la aplicacion.
+ *
+ * @param {object[]} eventos
+ */
 function guardarEventos(eventos) {
     try {
         localStorage.setItem(CLAVE_LOGS, JSON.stringify(eventos));
@@ -361,8 +352,7 @@ function evaluarReglasDeteccion(nuevo) {
 
     // Regla 4: acceso fuera de horario (antes de 08:00 o desde las 18:00).
     if (nuevo.accion === ACCIONES.LOGIN_EXITOSO) {
-        const hora = new Date(nuevo.fecha_hora).getHours();
-        if (hora < LOGS_HORA_APERTURA || hora >= LOGS_HORA_CIERRE) {
+        if (esFueraDeHorario(new Date(nuevo.fecha_hora))) {
             alertas.push(generarAlerta(nuevo, {
                 regla: "ACCESO_FUERA_HORARIO",
                 nivel: NIVELES_ALERTA.MEDIO,

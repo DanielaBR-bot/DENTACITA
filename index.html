@@ -37,7 +37,8 @@
         </section>
     </main>
 
-    <!-- Orden de carga: validacion y logs primero (auth.js depende de ambos) -->
+    <!-- Orden de carga: comun, validacion y logs primero (auth.js depende de ellos) -->
+    <script src="js/comun.js"></script>
     <script src="js/validacion.js"></script>
     <script src="js/logs.js"></script>
     <script src="js/auth.js"></script>
@@ -74,13 +75,6 @@
 
             const valorCorreo = campoCorreo.value;
             const valorContrasena = campoContrasena.value;
-
-            // Se registra (solo en consola de desarrollo, nunca en el log)
-            // si alguno de los campos trae caracteres sospechosos de XSS;
-            // de todas formas el escape se aplica antes de mostrar nada.
-            const huboIntentoSospechoso =
-                contieneCaracteresSospechosos(valorCorreo) ||
-                contieneCaracteresSospechosos(valorContrasena);
 
             // Validacion de formato en el cliente
             const errorDeCorreo = validarCorreo(valorCorreo);

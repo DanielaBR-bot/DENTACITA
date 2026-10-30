@@ -119,7 +119,8 @@
         </section>
     </main>
 
-    <!-- Orden de carga: validacion y logs primero (auth.js depende de ambos) -->
+    <!-- Orden de carga: comun, validacion y logs primero (auth.js depende de ellos) -->
+    <script src="js/comun.js"></script>
     <script src="js/validacion.js"></script>
     <script src="js/logs.js"></script>
     <script src="js/auth.js"></script>
@@ -293,14 +294,6 @@
         // ------------------------------------------------------------
         // Exportacion
         // ------------------------------------------------------------
-
-        /** Fecha local de hoy con formato AAAA-MM-DD. */
-        function fechaDeHoy() {
-            const ahora = new Date();
-            const mes = String(ahora.getMonth() + 1).padStart(2, "0");
-            const dia = String(ahora.getDate()).padStart(2, "0");
-            return ahora.getFullYear() + "-" + mes + "-" + dia;
-        }
 
         /** Descarga el registro completo como dentacita_logs_AAAA-MM-DD.json */
         function exportarRegistro() {

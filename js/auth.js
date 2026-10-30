@@ -5,21 +5,19 @@
  * por rol de DentaCita.
  *
  * Depende de:
+ *   - js/comun.js       (CLAVE_SESION, generarId, esFueraDeHorario)
  *   - js/validacion.js  (limpiarEspacios)
  *   - js/logs.js        (registrarEvento, ACCIONES)
  *
- * Debe cargarse despues de esos dos archivos en cada pagina HTML.
+ * Debe cargarse despues de esos archivos en cada pagina HTML.
  * -----------------------------------------------------------
  */
 
 const RUTA_USUARIOS = "data/usuarios.json";
-const CLAVE_SESION = "dentacita_sesion";
 const CLAVE_BLOQUEOS = "dentacita_bloqueos";
 
 const MAX_INTENTOS = 3;
 const MINUTOS_BLOQUEO = 5;
-const HORA_APERTURA = 8;  // 08:00
-const HORA_CIERRE = 18;   // 18:00
 
 // Hash "senuelo" usado cuando el correo no existe, para que el
 // tiempo de respuesta sea similar al de un usuario real y no se
@@ -98,19 +96,6 @@ function estaBloqueada(correo) {
         guardarEstadoBloqueo(correo, { intentos: 0, bloqueadoHasta: null });
     }
     return false;
-}
-
-// ----------------------------------------------------------------
-// Horario de atencion
-// ----------------------------------------------------------------
-
-/**
- * Indica si la hora actual esta fuera del horario de atencion
- * (antes de las 08:00 o despues de las 18:00).
- */
-function esFueraDeHorario() {
-    const horaActual = new Date().getHours();
-    return horaActual < HORA_APERTURA || horaActual >= HORA_CIERRE;
 }
 
 // ----------------------------------------------------------------
@@ -237,25 +222,44 @@ function cerrarSesion() {
  * @returns {object} los datos de la sesion, si el acceso es valido
  */
 function verificarAcceso(rolesPermitidos) {
-    const sesion = obtenerSesion();
     const paginaActual = window.location.pathname.split("/").pop();
+    const decision = evaluarAcceso(rolesPermitidos, paginaActual);
+
+    if (!decision.permitido) {
+        window.location.href = decision.destino;
+        return null;
+    }
+    return decision.sesion;
+}
+
+/**
+ * Decide si la sesion actual puede entrar a una pagina, SIN redirigir.
+ * Es la logica de verificarAcceso() separada de la navegacion para poder
+ * probarla de forma automatica (pruebas.html).
+ *
+ * - Sin sesion (incluye el caso de un MFA pendiente): no permitido, destino
+ *   index.html, sin registrar evento (aun no hay usuario identificado).
+ * - Con sesion y rol no permitido: registra ACCESO_DENEGADO y manda a la
+ *   pagina de inicio de su rol.
+ *
+ * @param {string[]} rolesPermitidos
+ * @param {string} pagina Nombre de la pagina que se intenta abrir
+ * @returns {{permitido: boolean, sesion: object|null, destino: string|null, motivo: string}}
+ */
+function evaluarAcceso(rolesPermitidos, pagina) {
+    const sesion = obtenerSesion();
 
     if (!sesion) {
-        // No hay sesion activa: se redirige al login sin registrar
-        // evento (no hay usuario identificado todavia).
-        window.location.href = "index.html";
-        return null;
+        return { permitido: false, sesion: null, destino: "index.html", motivo: "SIN_SESION" };
     }
 
     if (!rolesPermitidos.includes(sesion.rol)) {
         registrarEvento(sesion.correo, sesion.rol, ACCIONES.ACCESO_DENEGADO,
-            "FALLO", "Intento de acceso no autorizado a " + paginaActual);
-        // Se redirige a la pagina que si le corresponde a su rol.
-        window.location.href = paginaInicioPorRol(sesion.rol);
-        return null;
+            "FALLO", "Intento de acceso no autorizado a " + pagina);
+        return { permitido: false, sesion, destino: paginaInicioPorRol(sesion.rol), motivo: "ROL_NO_AUTORIZADO" };
     }
 
-    return sesion;
+    return { permitido: true, sesion, destino: null, motivo: "OK" };
 }
 
 /**
