@@ -34,10 +34,15 @@ const ACCIONES = {
     LOGOUT: "LOGOUT",
     CITA_CREADA: "CITA_CREADA",
     CITA_CANCELADA: "CITA_CANCELADA",
+    MFA_ENVIADO: "MFA_ENVIADO",
+    MFA_EXITOSO: "MFA_EXITOSO",
+    MFA_FALLIDO: "MFA_FALLIDO",
+    MFA_EXPIRADO: "MFA_EXPIRADO",
     ALERTA_SEGURIDAD: "ALERTA_SEGURIDAD",
     ALERTA_REVISADA: "ALERTA_REVISADA",
     LOG_EXPORTADO: "LOG_EXPORTADO",
-    LOG_SIMULADOS_BORRADOS: "LOG_SIMULADOS_BORRADOS"
+    LOG_SIMULADOS_BORRADOS: "LOG_SIMULADOS_BORRADOS",
+    PRUEBAS_EJECUTADAS: "PRUEBAS_EJECUTADAS"
 };
 
 // Roles que pueden aparecer en el registro (para los filtros del panel).
@@ -56,13 +61,15 @@ const REGLAS_DETECCION = {
     FUERZA_BRUTA: "Fuerza bruta",
     ENUMERACION_CUENTAS: "Enumeración de cuentas",
     ESCALAMIENTO_PRIVILEGIOS: "Escalamiento de privilegios",
-    ACCESO_FUERA_HORARIO: "Acceso fuera de horario"
+    ACCESO_FUERA_HORARIO: "Acceso fuera de horario",
+    FALLOS_MFA: "Fallos de verificación MFA"
 };
 
 const VENTANA_DETECCION_MS = 5 * 60 * 1000; // 5 minutos
 const UMBRAL_FUERZA_BRUTA = 3;              // intentos fallidos del mismo correo
 const UMBRAL_ENUMERACION = 3;               // correos distintos con intentos fallidos
 const UMBRAL_ESCALAMIENTO = 2;              // accesos denegados en la misma sesion
+const UMBRAL_FALLOS_MFA = 3;                // codigos MFA fallidos del mismo usuario
 
 // ----------------------------------------------------------------
 // Utilidades
@@ -346,6 +353,24 @@ function evaluarReglasDeteccion(nuevo) {
                 usuario: nuevo.usuario,
                 rol: nuevo.rol,
                 ventana: false // una sola alerta por sesion
+            }, todos));
+        }
+    }
+
+    // Regla 5: fallos de MFA (3+ codigos MFA fallidos del mismo usuario en 5 min).
+    if (nuevo.accion === ACCIONES.MFA_FALLIDO) {
+        const fallosMFA = enVentana.filter((e) =>
+            e.accion === ACCIONES.MFA_FALLIDO && e.usuario === nuevo.usuario);
+        if (fallosMFA.length >= UMBRAL_FALLOS_MFA) {
+            alertas.push(generarAlerta(nuevo, {
+                regla: "FALLOS_MFA",
+                nivel: NIVELES_ALERTA.ALTO,
+                clave: nuevo.usuario,
+                detalle: fallosMFA.length + " códigos MFA fallidos de " + nuevo.usuario +
+                    " en menos de 5 minutos",
+                usuario: nuevo.usuario,
+                rol: nuevo.rol,
+                ventana: true
             }, todos));
         }
     }

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DentaCita - Verificación en dos pasos</title>
+    <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+    <div class="banner-simulacion">SIMULACIÓN – no se envía ningún mensaje real · entorno académico</div>
+
+    <main class="contenedor-mfa">
+        <section class="tarjeta">
+            <div class="logo-login">
+                <div class="diente">🦷</div>
+                <h1>Verificación en dos pasos</h1>
+                <p id="texto-usuario"></p>
+            </div>
+
+            <!-- Mensajes (error, expiracion, cancelacion) -->
+            <div id="mensaje-formulario" class="mensaje-formulario oculto"></div>
+
+            <!--
+                Panel que representa el celular o correo del usuario.
+                En un sistema real el codigo llegaria por SMS o correo; aqui
+                se muestra en pantalla porque no hay ningun servicio de envio.
+            -->
+            <div class="dispositivo-simulado" id="panel-dispositivo">
+                <span class="rotulo-simulacion">SIMULACIÓN</span>
+                <h2>📱 Dispositivo simulado / ✉️ Correo simulado</h2>
+                <p>Mensaje «recibido» para <strong id="correo-destino"></strong>:</p>
+                <span class="codigo-simulado" id="codigo-simulado">------</span>
+                <p>Su código de verificación de DentaCita. No lo comparta con nadie.</p>
+            </div>
+
+            <form id="form-mfa" novalidate>
+                <div class="estado-mfa">
+                    <span>Vence en: <strong id="tiempo-restante">--:--</strong></span>
+                    <span>Intentos restantes: <strong id="intentos-restantes">3</strong></span>
+                </div>
+
+                <div class="campo">
+                    <label for="codigo">Código de 6 dígitos</label>
+                    <input type="text" id="codigo" name="codigo" class="entrada-codigo"
+                           inputmode="numeric" autocomplete="one-time-code" maxlength="6">
+                    <div class="mensaje-error" id="error-codigo"></div>
+                </div>
+
+                <button type="submit" class="boton-principal" id="boton-verificar">Verificar</button>
+            </form>
+
+            <button type="button" class="enlace-secundario" id="boton-cancelar">Cancelar y volver al inicio de sesión</button>
+        </section>
+    </main>
+
+    <!-- Orden de carga: comun, validacion y logs primero (auth.js y mfa.js dependen de ellos) -->
+    <script src="js/comun.js"></script>
+    <script src="js/validacion.js"></script>
+    <script src="js/logs.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/mfa.js"></script>
+    <script>
+        const formulario = document.getElementById("form-mfa");
+        const campoCodigo = document.getElementById("codigo");
+        const errorCodigo = document.getElementById("error-codigo");
+        const mensajeFormulario = document.getElementById("mensaje-formulario");
+        const botonVerificar = document.getElementById("boton-verificar");
+        const etiquetaTiempo = document.getElementById("tiempo-restante");
+        const etiquetaIntentos = document.getElementById("intentos-restantes");
+
+        let temporizador = null;
+
+        iniciarPagina();
+
+        /**
+         * Decide que mostrar segun el estado:
+         *  - ya hay sesion: va directo a la pagina de su rol
+         *  - no hay codigo pendiente: vuelve al login (no se puede entrar a
+         *    esta pagina sin haber validado la contrasena)
+         *  - codigo vencido: lo registra como expirado y avisa
+         *  - codigo vigente: muestra el panel simulado y la cuenta regresiva
+         */
+        function iniciarPagina() {
+            const sesionActiva = obtenerSesion();
+            if (sesionActiva) {
+                window.location.href = paginaInicioPorRol(sesionActiva.rol);
+                return;
+            }
+
+            const desafio = obtenerDesafioMFA();
+            if (!desafio) {
+                window.location.href = "index.html";
+                return;
+            }
+
+            if (expirarDesafioSiVencido()) {
+                terminarConMensaje("El código expiró. Vuelva a iniciar sesión para recibir uno nuevo.");
+                return;
+            }
+
+            // textContent en todo: los datos vienen del almacenamiento del navegador.
+            document.getElementById("texto-usuario").textContent =
+                desafio.nombre + " (" + desafio.rol + ")";
+            document.getElementById("correo-destino").textContent = desafio.correo;
+            document.getElementById("codigo-simulado").textContent = desafio.codigo;
+            etiquetaIntentos.textContent = desafio.intentosRestantes;
+
+            actualizarCuentaRegresiva();
+            temporizador = setInterval(actualizarCuentaRegresiva, 1000);
+            campoCodigo.focus();
+        }
+
+        /** Actualiza el tiempo restante y, al llegar a cero, expira el codigo. */
+        function actualizarCuentaRegresiva() {
+            const desafio = obtenerDesafioMFA();
+            if (!desafio) return;
+
+            const restanteMs = desafio.vence - Date.now();
+            if (restanteMs <= 0) {
+                expirarDesafioSiVencido();
+                terminarConMensaje("El código expiró. Vuelva a iniciar sesión para recibir uno nuevo.");
+                return;
+            }
+            const minutos = Math.floor(restanteMs / 60000);
+            const segundos = Math.floor((restanteMs % 60000) / 1000);
+            etiquetaTiempo.textContent =
+                String(minutos).padStart(2, "0") + ":" + String(segundos).padStart(2, "0");
+        }
+
+        function mostrarMensajeFormulario(texto, tipo) {
+            mensajeFormulario.textContent = texto;
+            mensajeFormulario.className = "mensaje-formulario " + tipo;
+        }
+
+        /**
+         * Cierra el desafio: oculta el formulario y el panel simulado, muestra
+         * el mensaje final y deja solo el boton para volver al login.
+         */
+        function terminarConMensaje(texto) {
+            clearInterval(temporizador);
+            formulario.classList.add("oculto");
+            document.getElementById("panel-dispositivo").classList.add("oculto");
+            mostrarMensajeFormulario(texto, "error");
+            document.getElementById("boton-cancelar").textContent = "Volver al inicio de sesión";
+        }
+
+        formulario.addEventListener("submit", function (evento) {
+            evento.preventDefault();
+            errorCodigo.textContent = "";
+
+            // Un codigo mal formado no consume intentos: se corrige antes de enviar.
+            const codigo = limpiarEspacios(campoCodigo.value);
+            if (!/^\d{6}$/.test(codigo)) {
+                errorCodigo.textContent = "Ingrese los 6 dígitos del código";
+                return;
+            }
+
+            const resultado = verificarCodigoMFA(codigo);
+
+            switch (resultado.estado) {
+                case "OK":
+                    clearInterval(temporizador);
+                    botonVerificar.disabled = true;
+                    if (resultado.fueraDeHorario) {
+                        mostrarMensajeFormulario(
+                            "Acceso fuera del horario de atención (08:00 - 18:00). Se registró la alerta.",
+                            "alerta");
+                        setTimeout(function () {
+                            window.location.href = paginaInicioPorRol(resultado.rol);
+                        }, 1800);
+                    } else {
+                        window.location.href = paginaInicioPorRol(resultado.rol);
+                    }
+                    break;
+
+                case "INCORRECTO":
+                    etiquetaIntentos.textContent = resultado.intentosRestantes;
+                    errorCodigo.textContent = "Código incorrecto. Quedan " +
+                        resultado.intentosRestantes + " intento(s).";
+                    campoCodigo.value = "";
+                    campoCodigo.focus();
+                    break;
+
+                case "AGOTADO":
+                    etiquetaIntentos.textContent = "0";
+                    terminarConMensaje("Se agotaron los intentos. El inicio de sesión fue cancelado.");
+                    break;
+
+                case "EXPIRADO":
+                    terminarConMensaje("El código expiró. Vuelva a iniciar sesión para recibir uno nuevo.");
+                    break;
+
+                default: // SIN_DESAFIO
+                    window.location.href = "index.html";
+            }
+        });
+
+        document.getElementById("boton-cancelar").addEventListener("click", function () {
+            cancelarDesafioMFA();
+            window.location.href = "index.html";
+        });
+    </script>
+</body>
+</html>

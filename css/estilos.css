@@ -505,6 +505,153 @@ tr.fila-simulada {
     margin: 0 0 12px;
 }
 
+/* ---------- Verificacion en dos pasos (MFA simulado) ---------- */
+
+.contenedor-mfa {
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+}
+
+.dispositivo-simulado {
+    border: 2px dashed #5b2c83;
+    border-radius: var(--radio-tarjeta);
+    background: #f6effb;
+    padding: 16px 18px;
+    margin-bottom: 18px;
+}
+
+.dispositivo-simulado .rotulo-simulacion {
+    display: inline-block;
+    background: #5b2c83;
+    color: var(--blanco);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 2px 10px;
+    border-radius: 999px;
+}
+
+.dispositivo-simulado h2 {
+    margin: 10px 0 6px;
+    font-size: 1rem;
+    color: #3f1d5e;
+}
+
+.dispositivo-simulado p {
+    margin: 4px 0;
+    font-size: 0.88rem;
+}
+
+.codigo-simulado {
+    display: block;
+    text-align: center;
+    font-family: Consolas, monospace;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 0.35em;
+    color: #3f1d5e;
+    background: var(--blanco);
+    border-radius: 8px;
+    padding: 10px 0 10px 0.35em;
+    margin: 10px 0;
+}
+
+.estado-mfa {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 0.88rem;
+    margin-bottom: 14px;
+}
+
+.campo input.entrada-codigo {
+    text-align: center;
+    font-family: Consolas, monospace;
+    font-size: 1.5rem;
+    letter-spacing: 0.35em;
+}
+
+.enlace-secundario {
+    background: none;
+    border: none;
+    color: var(--azul-principal);
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 0.88rem;
+    padding: 0;
+    margin-top: 12px;
+}
+
+/* ---------- Pagina de pruebas automatizadas ---------- */
+
+.cumple {
+    color: var(--verde-exito);
+    font-weight: 700;
+}
+
+.no-cumple {
+    color: var(--rojo-error);
+    font-weight: 700;
+}
+
+table.tabla-datos td.celda-pequena {
+    font-size: 0.82rem;
+}
+
+.rejilla-metricas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.tarjeta-metrica {
+    padding: 14px 16px;
+}
+
+.tarjeta-metrica .cifra {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--azul-oscuro);
+}
+
+.tarjeta-metrica .rotulo {
+    font-size: 0.82rem;
+    color: #5b6b78;
+}
+
+.tarjeta-metrica .detalle {
+    display: block;
+    font-size: 0.78rem;
+    color: #7a8996;
+    margin-top: 4px;
+}
+
+.ficha-entorno {
+    padding: 14px 18px;
+    margin-bottom: 18px;
+    font-size: 0.9rem;
+}
+
+.ficha-entorno dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 4px 14px;
+    margin: 0;
+}
+
+.ficha-entorno dt {
+    font-weight: 600;
+}
+
+.ficha-entorno dd {
+    margin: 0;
+    word-break: break-word;
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 560px) {

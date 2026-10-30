@@ -82,6 +82,12 @@ function simularAccesoFueraDeHorario() {
         momento.setDate(momento.getDate() - 1);
     }
 
+    // La recepcionista debe superar el MFA antes de iniciar sesion.
+    registrarEventoSimulado(corrida, new Date(momento.getTime() - 20000), correo, "recepcionista",
+        ACCIONES.MFA_ENVIADO, "EXITO", "Código MFA generado (SIMULACIÓN)");
+    registrarEventoSimulado(corrida, new Date(momento.getTime() - 5000), correo, "recepcionista",
+        ACCIONES.MFA_EXITOSO, "EXITO", "Código MFA verificado correctamente");
+
     registrarEventoSimulado(corrida, momento, correo, "recepcionista",
         ACCIONES.LOGIN_EXITOSO, "EXITO", "Inicio de sesión correcto");
 

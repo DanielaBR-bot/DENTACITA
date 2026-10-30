@@ -185,10 +185,51 @@ function estaBloqueada(correo) {
 // ----------------------------------------------------------------
 
 /**
- * Intenta iniciar sesion con el correo y contrasena dados.
- * Se asume que ya pasaron por validarCorreo/validarContrasena.
+ * Crea la sesion activa de un usuario ya autenticado y registra
+ * LOGIN_EXITOSO (y ACCESO_FUERA_HORARIO si corresponde). Se llama al validar
+ * la contrasena (paciente y odontologo) o al superar el MFA (administrador y
+ * recepcionista). Nunca se guarda la contrasena en la sesion.
  *
- * @returns {Promise<{exito: boolean, mensaje: string, fueraDeHorario?: boolean}>}
+ * @param {{correo: string, nombre: string, rol: string}} usuario
+ * @returns {{sesion: object, fueraDeHorario: boolean}}
+ */
+function crearSesion(usuario) {
+    // El id de sesion permite agrupar eventos (regla de escalamiento de
+    // privilegios); es un valor aleatorio sin relacion con la clave.
+    const sesion = {
+        id: generarId("SES"),
+        correo: usuario.correo,
+        nombre: usuario.nombre,
+        rol: usuario.rol
+    };
+    sessionStorage.setItem(CLAVE_SESION, JSON.stringify(sesion));
+
+    registrarEvento(usuario.correo, usuario.rol, ACCIONES.LOGIN_EXITOSO,
+        "EXITO", "Inicio de sesión correcto");
+
+    // Si el ingreso ocurre fuera del horario de atencion, se permite pero
+    // se deja una alerta en el registro.
+    const fueraDeHorario = esFueraDeHorario();
+    if (fueraDeHorario) {
+        registrarEvento(usuario.correo, usuario.rol,
+            ACCIONES.ACCESO_FUERA_HORARIO, "ALERTA",
+            "Inicio de sesión fuera del horario de atención (08:00-18:00)");
+    }
+
+    return { sesion, fueraDeHorario };
+}
+
+/**
+ * Primer paso del login: valida bloqueo y contrasena.
+ * - Paciente y odontologo: crea la sesion y termina.
+ * - Administrador y recepcionista: genera el desafio MFA (requiereMFA: true)
+ *   y NO crea la sesion hasta que mfa.html verifique el codigo.
+ * Se asume que el correo y la contrasena ya pasaron por validarCorreo y
+ * validarContrasena.
+ *
+ * @param {string} correoIngresado
+ * @param {string} contrasenaIngresada
+ * @returns {Promise<{exito: boolean, mensaje: string, requiereMFA?: boolean, fueraDeHorario?: boolean}>}
  */
 async function iniciarSesion(correoIngresado, contrasenaIngresada) {
     const correo = limpiarEspacios(correoIngresado).toLowerCase();
@@ -213,33 +254,28 @@ async function iniciarSesion(correoIngresado, contrasenaIngresada) {
     const coincide = await verificarContrasena(contrasena, usuario || null);
 
     if (coincide) {
-        // Login correcto: reiniciar contador de intentos.
+        // Contrasena correcta: reiniciar contador de intentos.
         guardarEstadoBloqueo(correo, { intentos: 0, bloqueadoHasta: null });
 
-        // Guardar la sesion activa (nunca se guarda la contrasena).
-        // El id de sesion permite agrupar eventos (regla de escalamiento
-        // de privilegios); es un valor aleatorio sin relacion con la clave.
-        const sesion = {
-            id: generarId("SES"),
-            correo: usuario.correo,
-            nombre: usuario.nombre,
-            rol: usuario.rol
-        };
-        sessionStorage.setItem(CLAVE_SESION, JSON.stringify(sesion));
-
-        registrarEvento(usuario.correo, usuario.rol, ACCIONES.LOGIN_EXITOSO,
-            "EXITO", "Inicio de sesión correcto");
-
-        // Si el ingreso ocurre fuera del horario de atencion, se
-        // permite pero se genera una alerta en el registro.
-        const fueraDeHorario = esFueraDeHorario();
-        if (fueraDeHorario) {
-            registrarEvento(usuario.correo, usuario.rol,
-                ACCIONES.ACCESO_FUERA_HORARIO, "ALERTA",
-                "Inicio de sesión fuera del horario de atención (08:00-18:00)");
+        // Administrador y recepcionista deben superar el MFA: todavia NO se
+        // crea la sesion, solo un desafio pendiente (ver js/mfa.js).
+        if (rolRequiereMFA(usuario.rol)) {
+            iniciarDesafioMFA(usuario);
+            return {
+                exito: true,
+                mensaje: "Contraseña correcta. Falta la verificación en dos pasos",
+                requiereMFA: true,
+                fueraDeHorario: false
+            };
         }
 
-        return { exito: true, mensaje: "Inicio de sesión correcto", fueraDeHorario };
+        const resultado = crearSesion(usuario);
+        return {
+            exito: true,
+            mensaje: "Inicio de sesión correcto",
+            requiereMFA: false,
+            fueraDeHorario: resultado.fueraDeHorario
+        };
     }
 
     // 4. Login incorrecto: incrementar contador de intentos.
